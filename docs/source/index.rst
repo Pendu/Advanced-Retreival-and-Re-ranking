@@ -12,7 +12,7 @@ and re-ranking techniques for information retrieval and question answering syste
 
    rag_overview
    rag_survey
-   overview
+   dense_retrieval_paradigm
    hard_negatives
    literature
    stage1_retrieval/index

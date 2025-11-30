@@ -216,7 +216,7 @@ Quick Navigation
 
 **I'm doing research on training techniques:**
 
-→ Deep dive into :doc:`stage1_retrieval/hard_mining` and :doc:`overview` (theory)
+→ Deep dive into :doc:`stage1_retrieval/hard_mining` and :doc:`dense_retrieval_paradigm` (theory)
 
 Contributing New Papers
 ------------------------

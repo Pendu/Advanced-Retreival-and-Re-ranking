@@ -432,7 +432,7 @@ Common Pitfalls
 Next Steps
 ----------
 
-* See :doc:`../overview` for the full explanation of the hard negative problem
+* See :doc:`../dense_retrieval_paradigm` for the full explanation of the hard negative problem
 * See :doc:`../hard_negatives` for detailed analysis of why baselines fail
 * See :doc:`dense_baselines` for the foundational papers (DPR, RepBERT)
 * See :doc:`late_interaction` for ColBERT's approach to negatives
