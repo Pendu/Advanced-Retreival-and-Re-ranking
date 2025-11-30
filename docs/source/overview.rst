@@ -1,7 +1,7 @@
 Overview
 ========
 
-The New Bottleneck: Role of Advanced Negative Mining is in Dense Retrieval Evaluation
+The New Bottleneck: Role of Advanced Negative Mining in Dense Retrieval Evaluation
 --------------------------------------------------------------------------------------
 
 The Paradigm Shift from Sparse to Dense Retrieval
