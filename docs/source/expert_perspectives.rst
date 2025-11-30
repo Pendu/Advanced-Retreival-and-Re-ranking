@@ -5,6 +5,11 @@ This section synthesizes the architectural preferences, application focus, and e
 stances of leading researchers in neural information retrieval. Understanding these perspectives 
 helps practitioners select appropriate methods for their specific constraints.
 
+.. note::
+
+   This analysis is based on published work through 2024 and preprints from early 2025. 
+   Some claims reference recent arXiv preprints that may not yet be peer-reviewed.
+
 Expert Comparison
 -----------------
 
@@ -31,7 +36,7 @@ Expert Comparison
    * - **Lovisa Hagström**
      - LLM re-rankers (GPT-4, Claude) as study target; cross-encoders as baseline; BM25 as critical comparison
      - Zero-shot retrieval evaluation; robustness analysis; RAG failure mode identification
-     - **Accuracy-critical but skeptical**: Shows LLM re-rankers fail to beat BM25 on 40% of queries; argues efficiency gains are illusory if models are steered by lexical artifacts
+     - **Accuracy-critical but skeptical**: Shows LLM re-rankers underperform BM25 on a substantial fraction of queries; argues efficiency gains are illusory if models are steered by lexical artifacts
    * - **R. G. Reddy & Colleagues**
      - LLM listwise re-rankers (FIRST, RankGPT); late interaction (Video-ColBERT) for multimodal; cross-encoders as teacher
      - Multimodal retrieval (text-to-video); listwise re-ranking with reasoning; distillation from large to small models
@@ -59,7 +64,7 @@ Key Architectural Patterns
    * - **Hard Negative Mining**
      - All experts
      - Ranks 100-500 sampling, cross-encoder validation, curriculum learning
-     - 2-3× training cost but 15-19% MRR improvement
+     - 2-3× training cost but 10-20% MRR improvement (varies by dataset)
    * - **Multi-Retriever Ensemble**
      - Khattab, Hofstätter
      - BM25 + dense + late interaction, RRF fusion (k=60)
@@ -134,8 +139,9 @@ Despite differing stances, all experts agree on several key points:
 .. important::
 
    **Hard negative mining is the highest-leverage optimization** for improving any architecture's 
-   accuracy. Diminishing returns occur beyond ranks 200-400, and catastrophic failure occurs 
-   if false negatives exceed 15%.
+   accuracy. Research suggests diminishing returns occur beyond ranks 200-400, and training 
+   instability increases significantly when false negative rates are high (estimates vary from 
+   10-20% threshold depending on dataset and architecture).
 
 **Cross-Architecture Agreements:**
 
@@ -143,7 +149,7 @@ Despite differing stances, all experts agree on several key points:
 
 2. **Distillation is essential** for production—train with expensive teachers (cross-encoders, LLMs), deploy with efficient students (bi-encoders, small LLMs).
 
-3. **BM25 remains a strong baseline**—40% of queries are handled better by lexical matching than neural methods (Hagström's finding).
+3. **BM25 remains a strong baseline**—a significant portion of queries (particularly keyword-heavy or domain-specific) are handled better by lexical matching than neural methods (per Hagström et al.'s analysis).
 
 4. **Late interaction bridges the gap**—ColBERT-style architectures offer the best accuracy-efficiency trade-off for many applications.
 
@@ -152,19 +158,29 @@ Despite differing stances, all experts agree on several key points:
 References
 ----------
 
-1. Khattab & Zaharia. "ColBERT: Efficient and Effective Passage Search via Contextualized Late Interaction." SIGIR 2020. `arXiv:2004.12832 <https://arxiv.org/abs/2004.12832>`_
+**Peer-Reviewed Publications:**
 
-2. Santhanam et al. "ColBERTv2: Effective and Efficient Retrieval via Lightweight Late Interaction." NAACL 2022. `Paper <https://aclanthology.org/2022.naacl-main.272/>`_
+1. Khattab & Zaharia. "ColBERT: Efficient and Effective Passage Search via Contextualized Late Interaction." *SIGIR 2020*. `arXiv:2004.12832 <https://arxiv.org/abs/2004.12832>`_
 
-3. Hofstätter et al. "Efficiently Teaching an Effective Dense Retriever with Balanced Topic Aware Sampling." SIGIR 2021.
+2. Santhanam et al. "ColBERTv2: Effective and Efficient Retrieval via Lightweight Late Interaction." *NAACL 2022*. `Paper <https://aclanthology.org/2022.naacl-main.272/>`_
 
-4. Lassance & Clinchant. "SPLATE: Sparse Late Interaction Retrieval." SIGIR 2024. `Paper <https://dl.acm.org/doi/pdf/10.1145/3626772.3657968>`_
+3. Hofstätter et al. "Efficiently Teaching an Effective Dense Retriever with Balanced Topic Aware Sampling." *SIGIR 2021*. `arXiv:2104.06967 <https://arxiv.org/abs/2104.06967>`_
 
-5. Reimers & Gurevych. "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks." EMNLP 2019.
+4. Lassance & Clinchant. "SPLATE: Sparse Late Interaction Retrieval." *SIGIR 2024*. `Paper <https://dl.acm.org/doi/10.1145/3626772.3657968>`_
 
-6. Hagström et al. "Language Model Re-rankers are Steered by Lexical Similarities." 2025. `arXiv:2502.17036 <https://arxiv.org/abs/2502.17036>`_
+5. Reimers & Gurevych. "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks." *EMNLP 2019*. `arXiv:1908.10084 <https://arxiv.org/abs/1908.10084>`_
 
-7. Reddy et al. "Video-ColBERT: Contextualized Late Interaction for Text-to-Video Retrieval." CVPR 2025.
+6. Formal et al. "SPLADE: Sparse Lexical and Expansion Model for First Stage Ranking." *SIGIR 2021*. `arXiv:2107.05720 <https://arxiv.org/abs/2107.05720>`_
 
-8. Zhang et al. "REARANK: Reasoning-Aware Re-ranking with Reinforcement Learning." EMNLP 2025.
+**Preprints and Recent Work:**
+
+7. Hagström et al. "Language Model Re-rankers are Steered by Lexical Similarities." *arXiv preprint*, 2025. `arXiv:2502.17036 <https://arxiv.org/abs/2502.17036>`_
+
+8. Reddy et al. "Video-ColBERT: Contextualized Late Interaction for Text-to-Video Retrieval." *CVPR 2025*. `OpenAccess <https://openaccess.thecvf.com/content/CVPR2025/papers/Reddy_Video-ColBERT_Contextualized_Late_Interaction_for_Text-to-Video_Retrieval_CVPR_2025_paper.pdf>`_
+
+9. Zhang et al. "REARANK: Reasoning-Aware Re-ranking." *arXiv preprint*, 2024. `aclanthology <https://aclanthology.org/2025.emnlp-main.125/>`_
+
+**Blog Posts and Tutorials:**
+
+10. Reimers. "Cross-Encoders as Rerankers." *Weaviate Blog*. `Link <https://weaviate.io/blog/cross-encoders-as-reranker>`_
 
