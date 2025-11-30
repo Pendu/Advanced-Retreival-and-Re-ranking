@@ -150,3 +150,4 @@ Next Steps
 * See :doc:`hard_negatives` for the detailed analysis of the hard negative problem
 * See :doc:`stage1_retrieval/hard_mining` for practical mining strategies
 * See :doc:`rag_overview` for the two-stage retrieval-reranking pipeline
+* See :doc:`benchmarks_and_datasets` for evaluation metrics and standard benchmarks

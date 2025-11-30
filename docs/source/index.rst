@@ -14,6 +14,7 @@ and re-ranking techniques for information retrieval and question answering syste
    dense_retrieval_paradigm
    hard_negatives
    expert_perspectives
+   benchmarks_and_datasets
    literature
    stage1_retrieval/index
    stage2_reranking/index
@@ -29,6 +30,7 @@ Quick Links
 
 * :doc:`rag_overview` - Understanding RAG and the two-stage pipeline
 * :doc:`expert_perspectives` - Expert opinions on architectures and trade-offs
+* :doc:`benchmarks_and_datasets` - Evaluation benchmarks, datasets, and metrics
 * :doc:`stage1_retrieval/index` - Stage 1: Dense retrieval methods
 * :doc:`stage2_reranking/index` - Stage 2: Re-ranking and cross-encoders
 * :doc:`contributing` - How to contribute to this collection
