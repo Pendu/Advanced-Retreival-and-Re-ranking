@@ -159,22 +159,39 @@ Why Two Stages?
 
 **Computational Reality**
 
+*Assumptions: BERT-base model, single V100 GPU, MS MARCO-scale corpus (8.8M passages)*
+
 * Running a cross-encoder on 10 million documents × 1 query = 10 million forward passes
-* At ~50ms per forward pass: 500,000 seconds = 139 hours per query ❌
-* Dense retrieval on 10 million documents: ~100ms per query ✅
+* At ~50ms per forward pass (BERT-base): 500,000 seconds = 139 hours per query ❌
+* Dense retrieval on 10 million documents: ~100ms per query (FAISS HNSW index) ✅
 * Then cross-encoder on top-100 candidates: ~5 seconds per query ✅
 * **Total: ~5 seconds vs 139 hours**
+
+.. note::
+
+   **Model-specific latencies** (100 docs, V100 GPU):
+   
+   * TinyBERT: 0.5-1s
+   * MiniLM-L6: 1.5-2.5s  
+   * BERT-base: 5-8s
+   * BERT-large: 15-20s
 
 **The Pipeline Math**
 
 .. math::
 
-   \text{Total Time} = \underbrace{O(N \cdot \log N)}_{\text{Stage 1: ANN Search}} + \underbrace{O(k \cdot C)}_{\text{Stage 2: Rerank top-k}}
+   \text{Total Time} = \underbrace{O(\log N)}_{\text{Stage 1: ANN Search (HNSW)}} + \underbrace{O(k \cdot C)}_{\text{Stage 2: Rerank top-k}}
 
 Where:
 - N = corpus size (millions)
 - k = candidates to re-rank (100-1000)
 - C = cross-encoder cost per pair
+
+.. note::
+
+   **Complexity Clarification**: ANN index *construction* is O(N log N), but *query time* 
+   is O(log N) for HNSW or O(√N) for IVF-based methods. The query-time complexity is what 
+   matters for latency.
 
 Since k ≪ N, this is vastly more efficient than O(N · C).
 

@@ -87,7 +87,13 @@ GitHub Repository
 -----------------
 
 Visit our repository to contribute:
-https://github.com/pendu/Advanced-Retreival-and-Re-ranking
+
+* Repository: https://github.com/pendu/Advanced-Retreival-and-Re-ranking
+
+.. note::
+
+   The repository name contains a historical typo ("Retreival" instead of "Retrieval"). 
+   This is intentional to maintain URL stability.
 
 License
 -------

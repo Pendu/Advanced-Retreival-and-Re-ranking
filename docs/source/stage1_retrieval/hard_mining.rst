@@ -141,7 +141,7 @@ Smart Sampling Strategies
    * - `SimANS: Simple Ambiguous Negatives Sampling for Dense Text Retrieval <https://arxiv.org/abs/2210.11773>`_
      - Zhou et al.
      - EMNLP 2022
-     - `Code <https://github.com/microsoft/SimXNS>`_
+     - `Code <https://github.com/microsoft/SimXNS/tree/main/SimANS>`_
      - **Ambiguous Zone Sampling**: Samples negatives from "ambiguous zone"—ranked neither too high (false positive risk) nor too low (too easy). Avoids both extremes.
    * - `Curriculum Learning for Dense Retrieval Distillation (CL-DRD) <https://arxiv.org/abs/2204.13679>`_
      - Zeng et al.

@@ -182,12 +182,18 @@ Complete Chronological Timeline
 
 * Noisy Pair Corrector (EMNLP Findings)
 * EHI/Poeem (arXiv)
+* `BGE <https://arxiv.org/abs/2309.07597>`_ (BAAI) - State-of-the-art embedding models
+* `E5-Mistral <https://arxiv.org/abs/2401.00368>`_ (Microsoft) - LLM-based embeddings
 
 **2024**
 
 * CCR (arXiv)
 * TriSampler (arXiv)
 * SyNeg (arXiv)
+* `LLM2Vec <https://arxiv.org/abs/2404.05961>`_ (McGill) - Converting LLMs to text encoders
+* `BGE-M3 <https://arxiv.org/abs/2402.03216>`_ (BAAI) - Multi-lingual, multi-granularity embeddings
+* `Jina Embeddings v3 <https://arxiv.org/abs/2409.10173>`_ (Jina AI) - 8K context window embeddings
+* `NV-Embed <https://arxiv.org/abs/2405.17428>`_ (NVIDIA) - Generalist embedding model
 
 Quick Navigation
 ----------------
