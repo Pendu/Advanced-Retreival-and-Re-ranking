@@ -10,22 +10,25 @@ and re-ranking techniques for information retrieval and question answering syste
    :maxdepth: 2
    :caption: Contents:
 
+   rag_overview
    overview
    hard_negatives
    literature
+   stage1_retrieval/index
+   stage2_reranking/index
    contributing
 
 Welcome to the documentation for advanced retrieval and re-ranking research. This resource 
-provides a comprehensive overview of the latest techniques and papers in dense retrieval, 
-with a focus on negative sampling strategies that are critical to training effective 
-retrieval models.
+provides a comprehensive overview of the latest techniques and papers organized by their 
+role in the RAG pipeline: **Stage 1 (Retrieval)** for efficient candidate selection and 
+**Stage 2 (Re-ranking)** for precision scoring.
 
 Quick Links
 -----------
 
-* :doc:`overview` - Understanding the paradigm shift from sparse to dense retrieval
-* :doc:`hard_negatives` - The hard negative problem and baseline failures
-* :doc:`literature` - Comprehensive list of research papers with implementations
+* :doc:`rag_overview` - Understanding RAG and the two-stage pipeline
+* :doc:`stage1_retrieval/index` - Stage 1: Dense retrieval methods
+* :doc:`stage2_reranking/index` - Stage 2: Re-ranking and cross-encoders
 * :doc:`contributing` - How to contribute to this collection
 
 Indices and tables
