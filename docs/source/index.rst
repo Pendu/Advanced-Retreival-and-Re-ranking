@@ -11,6 +11,7 @@ and re-ranking techniques for information retrieval and question answering syste
    :caption: Contents:
 
    rag_overview
+   rag_survey
    overview
    hard_negatives
    literature
