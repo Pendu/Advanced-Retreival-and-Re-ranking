@@ -12,7 +12,7 @@ and re-ranking techniques for information retrieval and question answering syste
 
    overview
    hard_negatives
-   papers
+   literature
    contributing
 
 Welcome to the documentation for advanced retrieval and re-ranking research. This resource 
@@ -25,7 +25,7 @@ Quick Links
 
 * :doc:`overview` - Understanding the paradigm shift from sparse to dense retrieval
 * :doc:`hard_negatives` - The hard negative problem and baseline failures
-* :doc:`papers` - Comprehensive list of research papers with implementations
+* :doc:`literature` - Comprehensive list of research papers with implementations
 * :doc:`contributing` - How to contribute to this collection
 
 Indices and tables

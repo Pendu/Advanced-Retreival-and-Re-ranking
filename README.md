@@ -5,7 +5,7 @@ A curated collection of research papers on dense retrieval, negative sampling st
 ## Table of Contents
 - [Overview](#overview)
 - [The Hard Negative Problem](#the-hard-negative-problem)
-- [Papers](#papers)
+- [Literature](#literature)
 - [Contributing](#contributing)
 
 ---
@@ -66,7 +66,7 @@ The following papers explore various implementations and strategies in this ongo
 
 ---
 
-## Papers
+## Literature
 
 ### Dense Retrieval and Negative Selection Methods
 

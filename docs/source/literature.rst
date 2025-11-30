@@ -1,5 +1,5 @@
-Papers
-======
+Literature
+==========
 
 Dense Retrieval and Negative Selection Methods
 -----------------------------------------------
