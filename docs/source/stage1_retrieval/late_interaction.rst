@@ -98,7 +98,7 @@ Other Multi-Vector Methods
      - ICLR 2020
      - `Code <https://github.com/facebookresearch/ParlAI>`_
      - **Attention over Codes**: Learned codes represent the candidate document. Query attends to these codes. Balance of speed/accuracy; versatile for dialogue systems.
-   * - `ME-BERT: Extractive Summarization with Contextualized Word Representations <https://arxiv.org/abs/2009.05461>`_
+   * - `ME-BERT: Multi-Vector Encoding for Document Retrieval <https://arxiv.org/abs/2009.13013>`_
      - Luan et al.
      - arXiv 2020
      - NA

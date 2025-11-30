@@ -36,7 +36,7 @@ Hybrid Methods Literature
    * - `Real-Time Open-Domain Question Answering with Dense-Sparse Phrase Index (DENSPI) <https://arxiv.org/abs/1906.05807>`_
      - Seo et al.
      - ACL 2019
-     - `Code <https://github.com/uwnlp/denspi>`_
+     - `Code <https://github.com/seominjoon/denspi>`_
      - **Dense-Sparse Phrase Index**: Combines dense vectors with sparse phrase matching. Real-time phrase-level retrieval. Stores billions of phrase representations for precise extraction.
    * - `Complementing Lexical Retrieval with Semantic Residual Embedding <https://arxiv.org/abs/2004.13969>`_
      - Gao et al.

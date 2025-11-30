@@ -8,9 +8,14 @@ selecting appropriate methods and architectures.
 The Two-Stage Architecture
 ---------------------------
 
-.. image:: https://via.placeholder.com/800x300.png?text=Query+→+Stage+1+(Top-1000)+→+Stage+2+(Top-10)+→+LLM
-   :alt: Two-Stage RAG Pipeline
-   :align: center
+.. code-block:: text
+
+   ┌─────────┐      ┌──────────────────┐      ┌──────────────────┐      ┌─────────┐
+   │  Query  │ ───► │  Stage 1         │ ───► │  Stage 2         │ ───► │   LLM   │
+   │         │      │  (Top-1000)      │      │  (Top-10)        │      │         │
+   └─────────┘      │  Fast Retrieval  │      │  Precision       │      └─────────┘
+                    └──────────────────┘      │  Re-ranking      │
+                                              └──────────────────┘
 
 *Conceptual flow: Query → Fast Retrieval (Stage 1) → Precision Re-ranking (Stage 2) → LLM Generation*
 

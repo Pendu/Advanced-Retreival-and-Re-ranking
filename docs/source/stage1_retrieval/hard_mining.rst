@@ -110,7 +110,7 @@ Core Dynamic Mining Methods
      - arXiv 2020
      - NA
      - **Improved Contrast**: Enhanced negative contrast mechanism for better discrimination between relevant and irrelevant passages.
-   * - `Learning Robust Dense Retrieval Models from Incomplete Relevance Labels <https://dl.acm.org/doi/10.1145/3404835.3463106>`_
+   * - `Learning Robust Dense Retrieval Models from Incomplete Relevance Labels <https://arxiv.org/abs/2104.07662>`_
      - Prakash et al.
      - SIGIR 2021
      - `Code <https://github.com/thakur-nandan/income>`_
@@ -136,7 +136,7 @@ Smart Sampling Strategies
    * - `PAIR: Leveraging Passage-Centric Similarity Relation for Improving Dense Passage Retrieval <https://arxiv.org/abs/2108.06027>`_
      - Ren et al.
      - ACL Findings 2021
-     - `Code <https://github.com/DaoD/PAIR>`_
+     - NA
      - **Passage-Centric Loss**: Enforces structure among passages themselves (not just query-passage). Uses cross-encoder teacher with confidence thresholds to denoise.
    * - `SimANS: Simple Ambiguous Negatives Sampling for Dense Text Retrieval <https://arxiv.org/abs/2210.11773>`_
      - Zhou et al.
@@ -146,7 +146,7 @@ Smart Sampling Strategies
    * - `Curriculum Learning for Dense Retrieval Distillation (CL-DRD) <https://arxiv.org/abs/2204.13679>`_
      - Zeng et al.
      - SIGIR 2022
-     - `Code <https://github.com/hansizeng/CPR>`_
+     - NA
      - **Curriculum-based Distillation**: Trains on progressively harder negatives (easy → medium → hard). Progressive difficulty controls noise and stabilizes training. Cross-encoder teacher guidance.
 
 Efficiency and Scalability
