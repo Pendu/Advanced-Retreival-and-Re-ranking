@@ -10,6 +10,7 @@ LLM-based rerankers.
    :caption: Papers:
 
    muvera-multi-vector-retrieval
+   zelo-hard-negative
 
 Overview
 --------
@@ -30,6 +31,12 @@ Featured Papers
     A principled approach to reduce multi-vector similarity search to single-vector 
     MIPS, achieving 10% improved recall with 90% lower latency compared to prior 
     state-of-the-art. Enables ColBERT-quality retrieval at production scale.
+
+**Zelo: Addressing the Laffer Curve in Hard Negative Mining**
+    Introduces a theoretical framework identifying the Laffer curve relationship 
+    between hard negative miner intelligence and model performance. Reveals that 
+    increasingly sophisticated miners eventually degrade performance by selecting 
+    false negatives that are more relevant than human-annotated positives.
 
 Contributing
 ------------
