@@ -1,38 +1,52 @@
-.. _zelo-hard-negative-mining:
+.. _zelo-elo-inspired-training:
 
 ===================================================================
-Zelo: Addressing the Laffer Curve in Hard Negative Mining
+zELO: ELO-inspired Training Method for Rerankers and Embedding Models
 ===================================================================
 
 .. contents:: Table of Contents
    :local:
    :depth: 2
 
-Overview
-========
-
-The Zelo approach introduces a fundamental theoretical framework for understanding the limitations of hard negative mining in embedding model training. The key insight is the identification of a **Laffer curve relationship** between hard negative miner intelligence and student model performance—a phenomenon where increasingly sophisticated hard negative mining eventually degrades, rather than improves, model quality.
-
-This framework addresses a critical paradox in modern retrieval systems: as hard negative miners become more intelligent (using techniques like LLM-ensemble rerankers), they eventually identify "negatives" that are legitimately more relevant than human-annotated positives, leading to degraded training outcomes.
-
-Problem Statement
+Paper Information
 =================
 
-The Fundamental Constraint
---------------------------
+- **Title**: zELO: ELO-inspired Training Method for Rerankers and Embedding Models
+- **Authors**: Nicholas Pipitone, Ghita Houir Alami, Advaith Avadhanam, Anton Kaminskyi, Ashley Khoo (ZeroEntropy)
+- **Publication**: arXiv:2509.12541v1 [cs.AI], September 16, 2025
+- **Models Released**: zerank-1 (Qwen3-4B based), zerank-1-small (Qwen3-1.7B based)
+- **Code/Benchmark**: https://github.com/zeroentropy-ai/zbench
 
-Traditional hard negative mining aims to improve contrastive learning by selecting challenging negative examples that are semantically similar to the query but not relevant. However, the Zelo research reveals a critical limitation:
+Abstract
+========
 
-1. **Annotation Incompleteness**: Human annotators cannot exhaustively scan an entire corpus to identify all relevant documents for a given query.
+zELO introduces a novel training methodology that optimizes retrieval performance by recognizing that ranking tasks are statistically equivalent to a **Thurstone model**. The method uses unsupervised data to train state-of-the-art open-weight reranker models (zerank-1 and zerank-1-small) that achieve the highest retrieval scores across multiple domains including finance, legal, code, and STEM—outperforming closed-source proprietary rerankers on both NDCG@10 and Recall.
 
-2. **Superior Mining Capability**: State-of-the-art methods such as LLM-ensemble rerankers can reason on a much larger knowledge base than even expert annotators—and do so at scale.
+Key training statistics:
 
-3. **False Negative Generation**: As miner intelligence increases, the hard negatives become, on average, *legitimately more relevant* than the human-annotated positives.
+- 112,000 queries with 100 documents per query
+- Over 5 million query-zELO pairs
+- Trained end-to-end in less than 10,000 H100-hours
+- No human annotations required
+
+Motivation: The Laffer Curve Problem
+====================================
+
+The Fundamental Constraint on Hard Negative Mining
+--------------------------------------------------
+
+The authors identify a critical limitation in existing SOTA hard negative mining techniques. Experimentally, they found that making the "hard negative miner" increasingly intelligent eventually **degrades** model performance rather than improving it.
+
+**The Core Problem**: Manual inspection revealed that hard negatives were, on average, *legitimately more relevant* than human-annotated positives. This occurs because:
+
+1. Humans cannot exhaustively scan an entire corpus
+2. SOTA methods like LLM-ensemble rerankers can reason on a much larger knowledge base than even expert annotators
+3. These methods can identify relevant documents at scale that human annotators would miss
 
 The Laffer Curve Analogy
 ------------------------
 
-The Laffer curve, originally from economics, describes a non-monotonic relationship between tax rates and tax revenue—where increasing rates beyond a certain point decreases total revenue. Zelo applies this concept to hard negative mining:
+The relationship between hard negative miner intelligence and student model performance follows a Laffer curve pattern:
 
 .. code-block:: text
 
@@ -50,194 +64,280 @@ The Laffer curve, originally from economics, describes a non-monotonic relations
                                   |/              \
                                   +-----------------> Miner Intelligence
 
-**Key Observations:**
+As ensemble-generated hard negatives approach and exceed the quality of human-positive annotations, the marginal benefit from distillation diminishes and eventually becomes **negative**.
 
-- **Left Side (Low Intelligence)**: Simple miners select random or easy negatives that provide limited training signal
-- **Middle (Optimal Point)**: Moderately intelligent miners select genuinely hard negatives that improve learning
-- **Right Side (High Intelligence)**: Highly sophisticated miners begin selecting false negatives, degrading performance
+**Key Insight**: The highest possible pointwise reranker performance is NOT that which corresponds to the optimal point on this Laffer curve. Hard negative mining is fundamentally flawed, and its accuracy is capped by the training algorithm itself.
 
-Technical Analysis
-==================
+The Intractability of False Negatives
+-------------------------------------
 
-InfoNCE Loss and Pointwise Models
----------------------------------
+While one could human-annotate triplets :math:`(q, d^-, d^+)` to confirm :math:`d^-` as a true negative relative to the positive, this is inherently a **pairwise comparison**. For pointwise models, absolute scoring via InfoNCE requires in-batch negatives, which necessitates an unsupervised negative sampling strategy.
 
-The Zelo framework specifically addresses models trained with the InfoNCE (Noise Contrastive Estimation) loss:
+This motivates the zELO approach: using **pairwise annotations** from LLM ensembles and converting them to absolute relevance scores via the Elo/Thurstone framework.
+
+The zELO Method
+===============
+
+Core Definitions
+----------------
+
+**Pointwise Reranker**: A function :math:`R_{point}: Q \times D \rightarrow [0, 1]` such that for a query :math:`q` and corpus :math:`C = \{d_1, \ldots, d_n\}`, if :math:`i_1, \ldots, i_n` is the relevance ranking:
 
 .. math::
 
-   \mathcal{L}_{\text{InfoNCE}} = -\log \frac{\exp(\text{sim}(q, d^+)/\tau)}{\exp(\text{sim}(q, d^+)/\tau) + \sum_{d^- \in \mathcal{N}} \exp(\text{sim}(q, d^-)/\tau)}
+   R_{point}(q, d_{i_1}) > R_{point}(q, d_{i_2}) > \ldots > R_{point}(q, d_{i_n})
 
-Where:
+**Pairwise Reranker**: A function :math:`R_{pair}: Q \times D \times D \rightarrow [0, 1]` where:
 
-- :math:`q` is the query embedding
-- :math:`d^+` is the positive document embedding
-- :math:`d^-` are the negative document embeddings
-- :math:`\tau` is the temperature parameter
-- :math:`\mathcal{N}` is the set of in-batch negatives
+.. math::
 
-**The Critical Issue**: For pointwise models, absolute scoring via InfoNCE requires in-batch negatives, which necessitates an unsupervised negative sampling strategy. This creates an intractable problem:
+   p_{ij} := R_{pair}(q, d_i, d_j)
 
-- Pairwise comparison :math:`(q, d^-, d^+)` could allow human verification that :math:`d^-` is truly negative relative to :math:`d^+`
-- However, pointwise models require independent scoring, making pairwise verification infeasible at scale
+represents the probability that document :math:`d_i` is preferred over document :math:`d_j` for query :math:`q`.
 
-The False Negative Problem
---------------------------
+Multi-Stage Training Pipeline
+-----------------------------
 
-The research identifies that false negatives emerge when:
+The zELO method consists of four main stages:
 
-1. **Miner Quality Exceeds Annotation Quality**: The hard negative miner's relevance assessment surpasses the completeness of human annotations.
+**Stage 1: Candidate Generation**
+   Generate candidate documents using a first-stage retriever (e.g., hybrid search combining embeddings with BM25). Top-k = 100 documents are retrieved per query.
 
-2. **Corpus Scale**: Larger corpora increase the probability that highly relevant documents exist beyond the annotated positives.
+**Stage 2: Pairwise Preference Collection**
+   Gather sparse pairwise preferences from an ensemble of LLMs (|P| = 3 frontier models). For efficiency, a pairwise SLM is distilled from the LLM ensemble.
 
-3. **Semantic Overlap**: Modern embedding models and LLM rerankers can identify subtle semantic relationships that human annotators may miss.
+**Stage 3: Elo Score Computation**
+   Convert pairwise preferences to absolute relevance scores using the Thurstone statistical model via the Bradley-Terry framework.
 
-.. note::
+**Stage 4: Pointwise Reranker Training**
+   Fine-tune pointwise rerankers on the computed zELO scores using MSE loss.
 
-   The intractability of false negatives in hard negative mining represents a **fundamental limitation** of the methodology, not merely an engineering challenge to be overcome with better algorithms.
+Bradley-Terry Model Connection
+------------------------------
 
-Knowledge Distillation Implications
-===================================
+The Bradley-Terry model assumes that for documents :math:`d_i` and :math:`d_j` with latent abilities :math:`\pi_i` and :math:`\pi_j`:
 
-The Laffer curve phenomenon has significant implications for knowledge distillation in embedding models:
+.. math::
 
-Distillation Process Degradation
---------------------------------
+   P(d_i \succ d_j) = \frac{\pi_i}{\pi_i + \pi_j}
 
-When training a student embedding model through distillation from teacher ensembles:
+In the Elo formulation, parameterizing :math:`\pi_i = e^{Elo_i}`:
 
-+------------------------+---------------------------------------------------+
-| Stage                  | Effect                                            |
-+========================+===================================================+
-| Early Training         | Hard negatives provide challenging but correct    |
-|                        | discrimination tasks, improving learning          |
-+------------------------+---------------------------------------------------+
-| Mid Training           | Marginal benefit plateaus as negative quality     |
-|                        | approaches human annotation quality               |
-+------------------------+---------------------------------------------------+
-| Critical Point         | Mined negatives begin to be more relevant than    |
-|                        | annotated positives (false negatives)             |
-+------------------------+---------------------------------------------------+
-| Late Training          | Training on false negatives actively harms        |
-|                        | student model performance                         |
-+------------------------+---------------------------------------------------+
+.. math::
 
-Marginal Benefit Analysis
+   P(d_i \succ d_j) = \frac{e^{Elo_i}}{e^{Elo_i} + e^{Elo_j}} = \frac{1}{1 + e^{-(Elo_i - Elo_j)}} = \sigma(Elo_i - Elo_j)
+
+The Elo scores are fit via gradient descent using negative log-likelihood loss:
+
+.. math::
+
+   \mathcal{L} = \sum_{i,j} w_{ij} \log(1 + e^{Elo_j - Elo_i})
+
+Subject to the constraint :math:`\sum_i Elo_i = 0` for normalization.
+
+Thurstone Model Extension
 -------------------------
 
-The marginal benefit from the distillation process follows a characteristic pattern:
+The Thurstone model provides a better fit by assuming document noise follows a normal distribution (rather than Gumbel):
+
+.. math::
+
+   w_{ij} = \frac{1 + \text{erf}(Elo_i - Elo_j)}{2}
+
+This is justified via the central limit theorem, given that document comparisons are subject to multiple sources of noise.
+
+Sparse Matrix Subsampling
+=========================
+
+Graph Construction for Efficient Elo Estimation
+-----------------------------------------------
+
+Dense :math:`n \times n` pairwise inference is prohibitively expensive. The method uses sparse sampling with :math:`O(n)` pairwise comparisons while maintaining accurate Elo estimates.
+
+**Three Key Properties for Graph G**:
+
+1. **Connectivity**: The graph must be connected to establish relative Elo relationships between all documents.
+
+2. **Minimum Degree**: No nodes should have very low degree (Var[:math:`e'_i`] :math:`\propto 1/\text{deg}(d_i)`).
+
+3. **Low Diameter**: Maximum separation should be small (Var[:math:`e'_i - e'_j`] :math:`\propto \text{dist}_G(d_i, d_j)`).
+
+Random k-Regular Graph via Cycle Splicing
+-----------------------------------------
+
+The optimal solution uses :math:`k/2` random n-cycles with their edge sets unioned:
 
 .. code-block:: text
 
-   Marginal Benefit = f(negative_quality) where:
+   Step 1: Generate k/2 random cycles over the vertex set
+   Step 2: Overlay the cycles to create a k-regular graph
+   
+   Result: k-connected graph with N = kn/2 edges
+           Low diameter: O(log_{k-1}(n))
+           Uniform degree distribution
 
-   - If negative_quality < positive_quality: Positive benefit
-   - If negative_quality ≈ positive_quality: Diminishing benefit  
-   - If negative_quality > positive_quality: Negative benefit (degradation)
+For a random k-regular graph G:
 
-Comparison with Existing Methods
-================================
+.. math::
 
-Positive-Aware Mining Methods
------------------------------
+   \text{diam}(G) \leq \log_{k-1}(n) + \log_{k-1}(\log(n)) + \log_{k-1}\left(\frac{5}{2}k(k-1)\right)
 
-Contemporary approaches like NV-Retriever's positive-aware mining methods (TopK-MarginPos, TopK-PercPos) attempt to address the false negative problem by using the positive relevance score as a threshold for filtering negatives.
+with probability asymptotically 1 (Bollobás 2001).
 
-+---------------------------+--------------------------------+--------------------------------+
-| Method                    | Approach                       | Limitation                     |
-+===========================+================================+================================+
-| Naive Top-K               | Select top-k most similar      | High false negative rate       |
-|                           | candidates as negatives        |                                |
-+---------------------------+--------------------------------+--------------------------------+
-| Top-K Shifted by N        | Skip first N ranked            | Does not consider relevance    |
-|                           | candidates                     | scores                         |
-+---------------------------+--------------------------------+--------------------------------+
-| TopK-Abs                  | Filter by absolute score       | Ignores positive context       |
-|                           | threshold                      |                                |
-+---------------------------+--------------------------------+--------------------------------+
-| TopK-MarginPos            | Positive score minus margin    | Still limited by annotation    |
-|                           | as threshold                   | completeness                   |
-+---------------------------+--------------------------------+--------------------------------+
-| TopK-PercPos              | Percentage of positive score   | Still limited by annotation    |
-|                           | as threshold                   | completeness                   |
-+---------------------------+--------------------------------+--------------------------------+
+**Final Configuration**: N = 400 inferences (0.4% of full 100×100 matrix) with k = 8 (4 random cycles).
 
-**Key Insight**: While these methods reduce false negatives, they cannot fundamentally solve the Laffer curve problem because they still rely on the assumption that human-annotated positives represent the upper bound of relevance.
+Training Details
+================
 
-Fundamental vs. Engineering Limitations
----------------------------------------
+Dataset
+-------
 
-The Zelo analysis distinguishes between:
+- **Queries**: 112,000 publicly available queries across finance, law, medicine, code, and STEM
+- **Documents**: >100M publicly available web-scale documents
+- **Initial Retrieval**: Qwen3-Embedding-4B embeddings combined via RRF with lexical BM25
+- **Top-k**: 100 documents per query
 
-1. **Engineering Limitations**: Problems that can be solved with better algorithms, more compute, or improved heuristics
-
-2. **Fundamental Limitations**: Constraints inherent to the methodology that cannot be overcome within the existing paradigm
-
-The Laffer curve in hard negative mining represents a **fundamental limitation** because:
-
-- It arises from the incompleteness of human annotation, not from algorithmic deficiencies
-- More sophisticated miners exacerbate rather than solve the problem
-- No amount of filtering can recover the "true" negatives if they don't exist in the annotation
-
-Practical Implications
-======================
-
-Recommendations for Practitioners
----------------------------------
-
-Based on the Laffer curve framework:
-
-1. **Avoid Over-Optimization**: Do not pursue maximally intelligent hard negative miners; instead, find the optimal point on the curve.
-
-2. **Monitor for Performance Degradation**: Track validation metrics during training to detect when harder negatives begin hurting performance.
-
-3. **Consider Annotation Quality**: Invest in improving annotation coverage rather than mining sophistication.
-
-4. **Use Ensemble Diversity**: If using ensemble miners, ensure diversity to avoid systematic false negatives.
-
-Research Directions
+Ensemble Annotation
 -------------------
 
-The Zelo framework suggests several avenues for future research:
+An ensemble of |P| = 3 frontier LLMs generates pairwise preferences:
 
-- **Optimal Point Estimation**: Developing methods to identify where the inflection point occurs for a given dataset/model combination
+- Each LLM outputs chain-of-thought justification and preference score on [-1, 1]
+- Scores are clamped to {-1, 0, 1} and averaged
+- Document order is randomized to mitigate position bias
 
-- **Alternative Loss Functions**: Investigating whether different contrastive losses can shift or eliminate the Laffer curve
+**Key Finding**: Ensembles of LLMs via zELO generate **higher quality data** than equivalent human annotators on average.
 
-- **Hybrid Approaches**: Combining automated mining with targeted human verification at scale
+Binary Cross-Entropy Loss for Pairwise Training
+-----------------------------------------------
 
-- **Data Collection**: Systematic collection of data with miner intelligence as the independent variable
+.. math::
 
-Limitations and Future Work
-===========================
+   \mathcal{L} = \sum_{i,j \text{ sampled over } q} \text{BCE}(p_{ij}, p'_{ij})
 
-The authors note that sufficient data was not collected with miner intelligence as the sole independent variable. Future research should focus on:
+Where:
 
-1. Rigorous experimental validation of the Laffer curve across different:
+.. math::
 
-   - Model architectures
-   - Dataset sizes and domains
-   - Mining techniques
-   - Annotation quality levels
+   \text{BCE}(p, q) := -(p \log(q) + (1-p) \log(1-q))
 
-2. Quantitative characterization of the optimal miner intelligence level
+Pointwise Reranker Training
+---------------------------
 
-3. Development of adaptive mining strategies that automatically adjust to the optimal point
+Standard MSE loss for supervised fine-tuning:
+
+.. math::
+
+   \mathcal{L}_{SFT} = \frac{1}{|D_{train}|} \sum_{(q,d,y) \in D_{train}} (R_{point}(q, d) - y)^2
+
+Where :math:`y` values are the computed zELO scores.
+
+RLHF Refinement Stage
+---------------------
+
+A second training pass adds data based on pointwise reranker failures:
+
+1. For each query, identify :math:`d_{human}` (highest human-annotated document)
+2. Let :math:`r_{human}` = rank of this document by the trained pointwise reranker
+3. If :math:`r_{human} > t` (threshold), this is a failure
+4. Inference the pairwise ensemble on :math:`(d_{human}, d')` where :math:`d'` is ranked at position :math:`r_{human} - 1`
+5. Add this comparison to training data and retrain
+
+This recaptures signal that pure LLM-ensemble distillation missed while using high-SNR human annotations.
+
+Results
+=======
+
+Public Benchmark Performance (NDCG@10)
+--------------------------------------
+
++------------------+-------------------+---------------------+------------------------+-----------------+--------------+
+| Task             | Default(emb)      | Cohere rerank-v3.5  | Salesforce/Llama-rank  | zerank-1-small  | zerank-1     |
++==================+===================+=====================+========================+=================+==============+
+| Code             | 0.678             | 0.724               | 0.694                  | 0.730           | **0.754**    |
++------------------+-------------------+---------------------+------------------------+-----------------+--------------+
+| Conversational   | 0.250             | 0.571               | 0.484                  | 0.556           | **0.596**    |
++------------------+-------------------+---------------------+------------------------+-----------------+--------------+
+| Finance          | 0.839             | 0.824               | 0.828                  | 0.861           | **0.894**    |
++------------------+-------------------+---------------------+------------------------+-----------------+--------------+
+| Legal            | 0.703             | 0.804               | 0.767                  | 0.817           | **0.821**    |
++------------------+-------------------+---------------------+------------------------+-----------------+--------------+
+| Medical          | 0.619             | 0.750               | 0.719                  | 0.773           | **0.796**    |
++------------------+-------------------+---------------------+------------------------+-----------------+--------------+
+| STEM             | 0.401             | 0.510               | 0.595                  | 0.680           | **0.694**    |
++------------------+-------------------+---------------------+------------------------+-----------------+--------------+
+
+Private Dataset Performance (NDCG@10)
+-------------------------------------
+
++-------------------+---------------------+------------------------+--------------------+-----------------+--------------+
+| Task              | Cohere rerank-v3.5  | Salesforce/Llama-rank  | VoyageAI/rerank-2  | zerank-1-small  | zerank-1     |
++===================+=====================+========================+====================+=================+==============+
+| Legal             | 0.718               | 0.766                  | 0.746              | 0.799           | **0.854**    |
++-------------------+---------------------+------------------------+--------------------+-----------------+--------------+
+| Enterprise Search | 0.674               | 0.629                  | 0.735              | 0.765           | **0.799**    |
++-------------------+---------------------+------------------------+--------------------+-----------------+--------------+
+| Conversational    | 0.727               | 0.653                  | 0.727              | 0.747           | **0.787**    |
++-------------------+---------------------+------------------------+--------------------+-----------------+--------------+
+| Healthcare        | 0.706               | 0.756                  | 0.749              | 0.885           | **0.898**    |
++-------------------+---------------------+------------------------+--------------------+-----------------+--------------+
+
+**Key Observation**: Margins improve on private datasets, indicating high generalization and low overfitting to public benchmarks.
+
+Latency Comparison
+------------------
+
++-------------+------------+---------------------+----------------------+
+| Model       | NDCG@10    | Latency (12 KB)     | Latency (150 KB)     |
++=============+============+=====================+======================+
+| Jina m0     | 0.7279     | 547.14 ± 66.84 ms   | 2,543.8 ± 2,984.9 ms |
++-------------+------------+---------------------+----------------------+
+| Cohere 3.5  | 0.7091     | 171.5 ± 106.8 ms    | 459.2 ± 87.9 ms      |
++-------------+------------+---------------------+----------------------+
+| zerank-1    | **0.7683** | **149.7 ± 53.1 ms** | **314.4 ± 94.6 ms**  |
++-------------+------------+---------------------+----------------------+
+
+Key Contributions
+=================
+
+1. **Novel Theoretical Framework**: Identification of the Laffer curve limitation in hard negative mining, explaining why increasingly sophisticated miners eventually degrade performance.
+
+2. **zELO Training Pipeline**: A multi-stage approach that bypasses the Laffer curve by using pairwise comparisons and Elo-based scoring rather than pointwise annotations with hard negatives.
+
+3. **Unsupervised Data Generation**: Demonstration that LLM ensembles via zELO generate higher quality training data than human annotators.
+
+4. **Efficient Sparse Sampling**: k-regular graph construction via cycle splicing achieves accurate Elo estimation with only 0.4% of full pairwise comparisons.
+
+5. **State-of-the-Art Models**: zerank-1 and zerank-1-small achieve best-in-class performance across multiple domains while maintaining competitive latency.
+
+Practical Applications
+======================
+
+- **Automated Benchmarking**: zELO can benchmark internal private documents without human annotation
+- **Domain-Specific Fine-tuning**: Generate domain-specific training data automatically
+- **Live Production Evaluation**: Randomly sample live query logs, annotate via zELO, and discover/fix retrieval issues
+- **Continuous Improvement**: Use zELO annotations to fine-tune rerankers on production data
+
+Model Availability
+==================
+
+- **zerank-1**: https://huggingface.co/zeroentropy/zerank-1 (Open-weight, ZeroEntropy license)
+- **zerank-1-small**: https://huggingface.co/zeroentropy/zerank-1-small (Apache 2.0 License)
+- **Evaluation Pipeline**: https://github.com/zeroentropy-ai/zbench
 
 References
 ==========
 
-.. [1] Relevant foundational work on contrastive learning and InfoNCE loss
+.. [1] Pipitone, N., Alami, G.H., Avadhanam, A., Kaminskyi, A., & Khoo, A. (2025). zELO: ELO-inspired Training Method for Rerankers and Embedding Models. arXiv:2509.12541.
 
-.. [2] NV-Retriever: Improving text embedding models with effective hard-negative mining (2024)
+.. [2] Bradley, R.A., & Terry, M.E. (1952). Rank analysis of incomplete block designs: I. The method of paired comparisons. Biometrika, 39(3-4), 324-345.
 
-.. [3] Hard negative mining techniques in embedding model training
+.. [3] Zermelo, E. (1929). Die Berechnung der Turnier-Ergebnisse als ein Maximumproblem der Wahrscheinlichkeitsrechnung. Mathematische Zeitschrift, 29(1), 436-460.
 
-.. [4] Knowledge distillation approaches for retrieval models
+.. [4] Bollobás, B. (2001). Random graphs (2nd ed.). Cambridge University Press.
 
-.. note::
-
-   This document is based on research findings regarding the Laffer curve phenomenon in hard negative mining. The specific experimental validation of these findings is noted as future work in the original research.
+.. [5] Yang, A., et al. (2025). Qwen3 technical report. arXiv:2505.09388.
 
 ----
 
+*Document generated for the Advanced Retrieval and Re-ranking literature survey*
