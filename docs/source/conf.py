@@ -33,8 +33,8 @@ html_static_path = ['_static']
 # THEME TOGGLE: Change this to switch between themes
 # Options: 'pydata' or 'wagtail'
 # =============================================================================
-USE_THEME = 'pydata'
-#USE_THEME = 'wagtail'
+#USE_THEME = 'pydata'
+USE_THEME = 'wagtail'
 
 # GitHub repository info (shared by both themes)
 GITHUB_URL = 'https://github.com/pendu/Advanced-Retreival-and-Re-ranking'
