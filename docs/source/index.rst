@@ -11,6 +11,7 @@ and re-ranking techniques for information retrieval and question answering syste
    :caption: Contents:
 
    rag_overview
+   rag_practical_guide
    rag_complexity
    dense_retrieval_paradigm
    hard_negatives
@@ -31,6 +32,7 @@ Quick Links
 -----------
 
 * :doc:`rag_overview` - Understanding RAG and the two-stage pipeline
+* :doc:`rag_practical_guide` - Building RAG pipelines: MVP to production
 * :doc:`rag_complexity` - Computational complexity analysis of RAG components
 * :doc:`expert_perspectives` - Expert opinions on architectures and trade-offs
 * :doc:`benchmarks_and_datasets` - Evaluation benchmarks, datasets, and metrics

@@ -14,7 +14,7 @@ reranking, and Retrieval-Augmented Generation (RAG). As the field has matured, l
 **Rankify** and **Rerankers** have emerged to unify these capabilities, while specialized tools 
 address specific architectural paradigms and deployment requirements.
 
-This comparison covers **30+ libraries** across four categories, with detailed analysis of:
+This comparison covers **30+ libraries** across five categories, with detailed analysis of:
 
 * Architectural approaches and design philosophies
 * Supported models and methods
@@ -435,6 +435,239 @@ Retrieval-Specialized Libraries
 
 Libraries focused on embedding generation, neural search, and information retrieval.
 
+Embedding Training Libraries
+----------------------------
+
+Contrastors (Nomic AI)
+^^^^^^^^^^^^^^^^^^^^^^
+
+**Overview**
+
+Contrastors is a PyTorch library for training contrastive embedding models, developed by Nomic AI. 
+It provides the complete training pipeline used to create the Nomic Embed family of models.
+
+**Technical Specifications:**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Component
+     - Details
+   * - **Training Stages**
+     - MLM pretraining, contrastive pretraining, contrastive fine-tuning
+   * - **Models Trained**
+     - nomic-embed-text-v1/v1.5/v2, nomic-embed-vision-v1/v1.5, nomic-embed-text-v2-moe
+   * - **Architectures**
+     - BERT variants, Vision Transformers, Sparse MoE
+   * - **Optimizations**
+     - Flash Attention, custom CUDA kernels (rotary, layer norm, fused dense, xentropy)
+   * - **Distributed Training**
+     - DeepSpeed integration, multi-GPU support
+   * - **Data Format**
+     - Streaming from cloud storage (R2), gzipped JSONL with offsets
+
+**Key Features:**
+
+* **End-to-End Pipeline**: From MLM pretraining to contrastive fine-tuning
+* **Flash Attention Integration**: Leverages Tri Dao's Flash Attention for efficient training
+* **Multi-Modal Support**: Train aligned text and vision embedding models
+* **Sparse MoE**: Support for Mixture of Experts embedding models (nomic-embed-text-v2-moe)
+* **Reproducibility**: Full training configs and data access provided
+
+**Training Pipeline:**
+
+.. code-block:: text
+
+   ┌─────────────────────────────────────────────────────────────────┐
+   │                   Contrastors Training Pipeline                  │
+   ├─────────────────────────────────────────────────────────────────┤
+   │                                                                  │
+   │  Stage 1: MLM Pretraining                                       │
+   │  ┌──────────────────────────────────────────────────────────┐   │
+   │  │  BERT-style masked language modeling from scratch         │   │
+   │  │  DeepSpeed + Flash Attention for efficiency               │   │
+   │  └──────────────────────────────────────────────────────────┘   │
+   │                           │                                      │
+   │                           v                                      │
+   │  Stage 2: Contrastive Pretraining                               │
+   │  ┌──────────────────────────────────────────────────────────┐   │
+   │  │  ~200M examples with paired/triplet objectives            │   │
+   │  │  In-batch negatives, hard negative mining                 │   │
+   │  └──────────────────────────────────────────────────────────┘   │
+   │                           │                                      │
+   │                           v                                      │
+   │  Stage 3: Contrastive Fine-tuning                               │
+   │  ┌──────────────────────────────────────────────────────────┐   │
+   │  │  Task-specific fine-tuning on curated datasets            │   │
+   │  │  Produces final nomic-embed models                        │   │
+   │  └──────────────────────────────────────────────────────────┘   │
+   │                                                                  │
+   └─────────────────────────────────────────────────────────────────┘
+
+**Usage Example:**
+
+.. code-block:: bash
+
+   # MLM Pretraining
+   cd src/contrastors
+   deepspeed --num_gpus=8 train.py \
+       --config=configs/train/mlm.yaml \
+       --deepspeed_config=configs/deepspeed/ds_config.json \
+       --dtype=bf16
+
+   # Contrastive Training
+   torchrun --nproc-per-node=8 train.py \
+       --config=configs/train/contrastive_pretrain.yaml \
+       --dtype=bf16
+
+**Research Papers:**
+
+* "Nomic Embed: Training a Reproducible Long Context Text Embedder" (arXiv:2402.01613, 2024)
+* "Nomic Embed Vision: Expanding the Latent Space" (arXiv:2406.18587, 2024)
+* "Training Sparse Mixture Of Experts Text Embedding Models" (arXiv:2502.07972, 2025)
+
+**Repository**: https://github.com/nomic-ai/contrastors
+
+**When to Use:**
+
+* Training custom embedding models from scratch
+* Reproducing Nomic Embed training pipeline
+* Research on contrastive learning for embeddings
+* Multi-modal embedding alignment (text + vision)
+
+FlagEmbedding (BAAI)
+^^^^^^^^^^^^^^^^^^^^
+
+**Overview**
+
+FlagEmbedding is a comprehensive retrieval toolkit from the Beijing Academy of Artificial Intelligence (BAAI), 
+providing the BGE (BAAI General Embedding) family of models along with training and fine-tuning pipelines.
+
+**Technical Specifications:**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Component
+     - Details
+   * - **Embedding Models**
+     - BGE-base/large-en-v1.5 (768/1024d), BGE-M3 (multi-lingual, 8192 tokens), LLM-Embedder
+   * - **Reranker Models**
+     - bge-reranker-base, bge-reranker-large, bge-reranker-v2-m3
+   * - **Multi-Functionality**
+     - Dense retrieval, sparse retrieval (lexical), multi-vector (ColBERT-style) - all in BGE-M3
+   * - **Languages**
+     - English (v1.5), 100+ languages (M3)
+   * - **Context Length**
+     - 512 tokens (v1.5), 8192 tokens (M3)
+   * - **Training Method**
+     - RetroMAE pretraining + contrastive learning on large-scale pairs
+
+**Key Features:**
+
+* **BGE-M3**: First model supporting dense, sparse, and multi-vector retrieval simultaneously
+* **Reranker Integration**: Cross-encoder models for Stage 2 re-ranking
+* **Fine-tuning Support**: Scripts for custom domain adaptation with hard negative mining
+* **LLM-Embedder**: Unified embedding model for diverse LLM retrieval augmentation
+* **Activation Beacon**: Context length extension for LLMs (up to 400K tokens)
+
+**Model Hierarchy:**
+
+.. code-block:: text
+
+   FlagEmbedding Ecosystem
+   ├── Embedding Models (Stage 1)
+   │   ├── bge-small-en-v1.5    (33M params, 384d)
+   │   ├── bge-base-en-v1.5     (109M params, 768d)  ← Most popular
+   │   ├── bge-large-en-v1.5    (335M params, 1024d)
+   │   └── bge-m3               (568M params, 1024d, multilingual)
+   │
+   ├── Reranker Models (Stage 2)
+   │   ├── bge-reranker-base    (278M params)
+   │   ├── bge-reranker-large   (560M params)
+   │   └── bge-reranker-v2-m3   (568M params, multilingual)
+   │
+   └── Specialized Models
+       ├── llm-embedder         (LLM retrieval augmentation)
+       └── LLaRA                (LLaMA-7B dense retriever)
+
+**Usage Example:**
+
+.. code-block:: python
+
+   # Using FlagEmbedding directly
+   from FlagEmbedding import FlagModel
+   
+   model = FlagModel('BAAI/bge-base-en-v1.5', use_fp16=True)
+   
+   # For retrieval, add instruction to queries
+   queries = ["Represent this sentence for searching: What is BGE?"]
+   passages = ["BGE is a general embedding model...", "Python is..."]
+   
+   q_embeddings = model.encode(queries)
+   p_embeddings = model.encode(passages)
+   scores = q_embeddings @ p_embeddings.T
+
+   # Using with Sentence-Transformers
+   from sentence_transformers import SentenceTransformer
+   
+   model = SentenceTransformer('BAAI/bge-base-en-v1.5')
+   embeddings = model.encode(["Hello world", "How are you?"])
+
+   # Reranker usage
+   from FlagEmbedding import FlagReranker
+   
+   reranker = FlagReranker('BAAI/bge-reranker-large', use_fp16=True)
+   scores = reranker.compute_score([
+       ["What is BGE?", "BGE is a general embedding..."],
+       ["What is BGE?", "Python is a programming language..."]
+   ])
+
+**Performance (MTEB Leaderboard):**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 15 15 15 15
+
+   * - Model
+     - Dim
+     - Avg Score
+     - Retrieval
+     - Reranking
+   * - bge-large-en-v1.5
+     - 1024
+     - 64.23
+     - 54.29
+     - 60.03
+   * - bge-base-en-v1.5
+     - 768
+     - 63.55
+     - 53.25
+     - 58.86
+   * - bge-small-en-v1.5
+     - 384
+     - 62.17
+     - 51.68
+     - 58.36
+
+**Research Papers:**
+
+* "C-Pack: Packaged Resources To Advance General Chinese Embedding" (arXiv:2309.07597, 2023)
+* "BGE M3-Embedding: Multi-Lingual, Multi-Functionality, Multi-Granularity" (arXiv:2402.03216, 2024)
+* "Making Large Language Models A Better Foundation For Dense Retrieval" (LLaRA, 2024)
+
+**Repository**: https://github.com/FlagOpen/FlagEmbedding
+
+**When to Use:**
+
+* Production-ready embeddings with strong MTEB performance
+* Multilingual retrieval (100+ languages with BGE-M3)
+* Combined embedding + reranking pipeline from same ecosystem
+* Long-context retrieval (8192 tokens with M3)
+* Fine-tuning embeddings on custom domains
+
 Foundation Libraries
 --------------------
 
@@ -568,8 +801,95 @@ Lightweight ColBERT alternative from Lighton AI for training and inference.
 * Training from scratch or fine-tuning
 * Multiple pooling strategies
 * Integration with Sentence-Transformers ecosystem
+* FastPLAID indexing for efficient similarity search
 
 **Repository**: https://github.com/lightonai/pylate
+
+LFM2-ColBERT (Liquid AI)
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Overview**
+
+LFM2-ColBERT-350M is a state-of-the-art late interaction retriever from Liquid AI built on their 
+efficient LFM2 (Liquid Foundation Model) backbone. It excels at multilingual and cross-lingual 
+retrieval while maintaining inference speed comparable to models 2.3x smaller.
+
+**Technical Specifications:**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Property
+     - Details
+   * - **Parameters**
+     - 353M (17 layers: 10 conv + 6 attn + 1 dense)
+   * - **Context Length**
+     - 32,768 tokens (query: 32, document: 512)
+   * - **Output Dimension**
+     - 128 per token
+   * - **Similarity Function**
+     - MaxSim (late interaction)
+   * - **Languages**
+     - English, Arabic, Chinese, French, German, Japanese, Korean, Spanish
+   * - **Inference Library**
+     - PyLate with FastPLAID indexing
+
+**Key Innovations:**
+
+* **Hybrid Architecture**: LFM2 backbone combines convolutional and attention layers for efficiency
+* **Cross-Lingual Retrieval**: Query in one language, retrieve documents in another with high accuracy
+* **Long Context**: 32K token context (vs. 512 for standard ColBERT)
+* **Efficiency**: Throughput on par with GTE-ModernColBERT despite being 2x larger
+
+**Cross-Lingual Performance (NDCG@10 on NanoBEIR):**
+
+.. code-block:: text
+
+   Documents in English, Queries in different languages:
+   
+   Query Language    │  NDCG@10
+   ──────────────────┼──────────
+   English           │  0.661
+   Spanish           │  0.553
+   French            │  0.551
+   German            │  0.554
+   Portuguese        │  0.535
+   Italian           │  0.522
+   Japanese          │  0.477
+   Arabic            │  0.416
+   Korean            │  0.395
+
+**Usage Example (with PyLate):**
+
+.. code-block:: python
+
+   from pylate import indexes, models, retrieve
+   
+   # Load model
+   model = models.ColBERT(model_name_or_path="LiquidAI/LFM2-ColBERT-350M")
+   model.tokenizer.pad_token = model.tokenizer.eos_token
+   
+   # Index documents
+   index = indexes.PLAID(index_folder="my-index", index_name="docs", override=True)
+   
+   doc_embeddings = model.encode(documents, is_query=False, batch_size=32)
+   index.add_documents(documents_ids=doc_ids, documents_embeddings=doc_embeddings)
+   
+   # Retrieve
+   retriever = retrieve.ColBERT(index=index)
+   query_embeddings = model.encode(queries, is_query=True)
+   results = retriever.retrieve(queries_embeddings=query_embeddings, k=10)
+
+**Use Cases:**
+
+* **E-commerce**: Multilingual product search (description in English, query in user's language)
+* **On-device Search**: Efficient semantic search on mobile/edge devices
+* **Enterprise Knowledge**: Cross-lingual document retrieval for global organizations
+
+**Model Card**: https://huggingface.co/LiquidAI/LFM2-ColBERT-350M
+
+**Demo**: https://huggingface.co/spaces/LiquidAI/LFM2-ColBERT
 
 Multi-Modal Retrieval
 ---------------------
@@ -805,10 +1125,13 @@ Decision Tree
      │     └─> No ──> Continue
      │
      ├─> Need embeddings/retrieval?
-     │     ├─> Dense ──> Sentence-Transformers
-     │     ├─> Late Interaction ──> RAGatouille or ColBERT
+     │     ├─> Train custom embeddings ──> Contrastors or FlagEmbedding
+     │     ├─> Dense (inference) ──> Sentence-Transformers or BGE
+     │     ├─> Late Interaction ──> RAGatouille, ColBERT, or PyLate
+     │     │     └─> Cross-lingual ──> LFM2-ColBERT
      │     ├─> Sparse ──> Pyserini
-     │     └─> Hybrid ──> SPLADE or Neural-Cherche
+     │     ├─> Hybrid ──> SPLADE or Neural-Cherche
+     │     └─> Multilingual (100+ langs) ──> BGE-M3
      │
      └─> Need evaluation?
            ├─> Retrieval ──> BEIR
@@ -927,9 +1250,11 @@ Repository Links
 * Rerankers: https://github.com/AnswerDotAI/rerankers
 * RankLLM: https://github.com/castorini/rank_llm
 
-**Retrieval:**
+**Retrieval & Embeddings:**
 
 * Sentence-Transformers: https://github.com/huggingface/sentence-transformers
+* FlagEmbedding (BGE): https://github.com/FlagOpen/FlagEmbedding
+* Contrastors: https://github.com/nomic-ai/contrastors
 * ColBERT: https://github.com/stanford-futuredata/ColBERT
 * RAGatouille: https://github.com/AnswerDotAI/RAGatouille
 * Pyserini: https://github.com/castorini/pyserini

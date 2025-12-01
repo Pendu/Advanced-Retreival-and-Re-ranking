@@ -340,4 +340,3 @@ References
 
 ----
 
-*Document generated for the Advanced Retrieval and Re-ranking literature survey*
