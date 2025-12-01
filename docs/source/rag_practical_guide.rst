@@ -40,20 +40,19 @@ Watch Ben Clavié's full talk from the Mastering LLMs Conference:
 Slides
 ------
 
-Download the presentation slides: :download:`Beyond the Basics of RAG (PDF) <ben_claive_beyond_basics_of_rag_talk.pdf>`
+:download:`Download the presentation slides (PDF) <ben_claive_beyond_basics_of_rag_talk.pdf>`
+
+You can also view the full slides and transcript on the `Parlance Labs education page <https://parlance-labs.com/education/rag/ben.html>`_.
 
 .. raw:: html
 
-   <div style="margin-bottom: 20px;">
+   <div style="margin: 20px 0;">
      <iframe 
-       src="_static/ben_claive_beyond_basics_of_rag_talk.pdf" 
+       src="https://docs.google.com/viewer?url=https://raw.githubusercontent.com/pendu/Advanced-Retreival-and-Re-ranking/main/docs/source/ben_claive_beyond_basics_of_rag_talk.pdf&embedded=true" 
        width="100%" 
        height="600px" 
        style="border: 1px solid #ccc;">
      </iframe>
-     <p style="font-size: 0.9em; color: #666;">
-       If the PDF doesn't display, <a href="_static/ben_claive_beyond_basics_of_rag_talk.pdf" target="_blank">click here to open it directly</a>.
-     </p>
    </div>
 
 The Compact MVP: Start Simple
