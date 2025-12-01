@@ -156,4 +156,5 @@ Next Steps
 * See :doc:`cross_encoders` for traditional BERT-based re-rankers
 * See :doc:`llm_rerankers` for modern LLM-based approaches
 * See :doc:`../stage1_retrieval/late_interaction` for ColBERT (can replace both stages)
+* See :doc:`../rerankers_survey` for a comprehensive survey of 22+ reranking methods with benchmarks
 

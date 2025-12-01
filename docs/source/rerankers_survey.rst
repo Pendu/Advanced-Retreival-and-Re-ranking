@@ -274,11 +274,46 @@ Recommendations for Practitioners
 - SPLADE for efficient inverted-index-based deployment
 - Consider distillation from larger models for custom domains
 
-References and Further Reading
--------------------------------
+References
+----------
 
-- Survey papers on neural reranking methods
-- Rankify framework documentation and tutorials
+**Primary Reference**
+
+This documentation is based on the following comprehensive survey:
+
+.. note::
+
+   Abdallah, A., Piryani, B., Mozafari, J., Ali, M., & Jatowt, A. (2025). 
+   "How good are LLM-based rerankers? An empirical analysis of state-of-the-art reranking models." 
+   *arXiv preprint* arXiv:2508.XXXXX [cs.CL].
+   
+   `GitHub Repository <https://github.com/DataScienceUIBK/llm-reranking-generalization-study>`_
+
+**Key Findings from the Survey:**
+
+* Evaluated **22 methods** with **40 variants** across TREC DL19, DL20, BEIR, and novel query datasets
+* LLM-based rerankers show superior performance on familiar queries but variable generalization to novel queries
+* Lightweight models offer comparable efficiency with competitive performance
+* Query novelty significantly impacts reranking effectiveness
+* Training data overlap is a confounding factor in benchmark performance
+
+**Additional References**
+
+1. Nogueira, R., & Cho, K. (2019). "Passage Re-ranking with BERT." *arXiv:1901.04085*. `Paper <https://arxiv.org/abs/1901.04085>`_
+
+2. Nogueira, R., Jiang, Z., Pradeep, R., & Lin, J. (2020). "Document Ranking with a Pretrained Sequence-to-Sequence Model." *EMNLP 2020*. `Paper <https://arxiv.org/abs/2003.06713>`_
+
+3. Sun, W., et al. (2023). "Is ChatGPT Good at Search? Investigating Large Language Models as Re-Ranking Agents." *EMNLP 2023*. `arXiv:2304.09542 <https://arxiv.org/abs/2304.09542>`_
+
+4. Pradeep, R., et al. (2023). "RankZephyr: Effective and Robust Zero-Shot Listwise Reranking is a Breeze!" *arXiv:2312.02724*. `Paper <https://arxiv.org/abs/2312.02724>`_
+
+5. Santhanam, K., et al. (2022). "ColBERTv2: Effective and Efficient Retrieval via Lightweight Late Interaction." *NAACL 2022*. `Paper <https://aclanthology.org/2022.naacl-main.272/>`_
+
+6. Formal, T., et al. (2021). "SPLADE: Sparse Lexical and Expansion Model for First Stage Ranking." *SIGIR 2021*. `arXiv:2107.05720 <https://arxiv.org/abs/2107.05720>`_
+
+Further Reading
+---------------
+
 - BEIR benchmark: Comprehensive zero-shot evaluation suite
 - TREC Deep Learning Track: Annual evaluation campaigns
 - MS MARCO: Large-scale passage ranking dataset
