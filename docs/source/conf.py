@@ -41,8 +41,17 @@ html_theme_options = {
     'logo_height': 59,
     'logo_url': '/',
     'logo_width': 45,
-    'github_url': 'https://github.com/pendu/Advanced-Retreival-and-Re-ranking',
+    'github_url': 'https://github.com/pendu/Advanced-Retreival-and-Re-ranking/',
     'footer_links': ','.join([
-    'https://github.com/pendu/Advanced-Retreival-and-Re-ranking',
+        'GitHub|https://github.com/pendu/Advanced-Retreival-and-Re-ranking',
     ]),
+}
+
+# GitHub context for "Edit on GitHub" and "View source" buttons
+html_context = {
+    'display_github': True,
+    'github_user': 'pendu',
+    'github_repo': 'Advanced-Retreival-and-Re-ranking',
+    'github_version': 'main',
+    'conf_py_path': '/docs/source/',
 }
