@@ -320,10 +320,10 @@ Further Reading
 
 **Related Documentation Pages:**
 
-- :doc:`stage2_reranking/index` - Overview of reranking in RAG pipelines
-- :doc:`stage2_reranking/cross_encoders` - Deep dive into cross-encoder architectures
-- :doc:`benchmarks_and_datasets` - BEIR, MTEB, and RTEB benchmark details
-- :doc:`stage1_retrieval/index` - First-stage retrieval methods
+- :doc:`index` - Overview of reranking in RAG pipelines
+- :doc:`cross_encoders` - Deep dive into cross-encoder architectures
+- :doc:`../benchmarks_and_datasets` - BEIR, MTEB, and RTEB benchmark details
+- :doc:`../stage1_retrieval/index` - First-stage retrieval methods
 
 ----
 

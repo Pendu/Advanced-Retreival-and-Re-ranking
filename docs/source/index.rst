@@ -16,7 +16,6 @@ and re-ranking techniques for information retrieval and question answering syste
    hard_negatives
    expert_perspectives
    benchmarks_and_datasets
-   rerankers_survey
    retrieval-reranking-libraries-comparison
    literature
    stage1_retrieval/index
@@ -35,7 +34,6 @@ Quick Links
 * :doc:`rag_complexity` - Computational complexity analysis of RAG components
 * :doc:`expert_perspectives` - Expert opinions on architectures and trade-offs
 * :doc:`benchmarks_and_datasets` - Evaluation benchmarks, datasets, and metrics
-* :doc:`rerankers_survey` - Comprehensive survey of reranking models
 * :doc:`retrieval-reranking-libraries-comparison` - 30+ libraries compared
 * :doc:`stage1_retrieval/index` - Stage 1: Dense retrieval methods
 * :doc:`stage2_reranking/index` - Stage 2: Re-ranking and cross-encoders
