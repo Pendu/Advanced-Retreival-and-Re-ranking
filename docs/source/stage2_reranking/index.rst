@@ -11,6 +11,7 @@ the candidate documents retrieved in Stage 1.
    cross_encoders
    llm_rerankers
    rerankers_survey
+   literature_survey/index
 
 Overview
 --------

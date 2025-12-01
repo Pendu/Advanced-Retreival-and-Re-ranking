@@ -15,6 +15,7 @@ candidate documents from large corpora.
    hybrid
    pretraining
    joint_learning
+   literature_survey/index
 
 Overview
 --------
