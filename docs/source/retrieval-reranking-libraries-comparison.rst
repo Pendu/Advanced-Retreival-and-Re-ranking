@@ -10,17 +10,21 @@ Introduction
 ============
 
 This comprehensive guide provides a systematic comparison of modern Python libraries for retrieval, 
-reranking, and Retrieval-Augmented Generation (RAG). As the field has matured, libraries like 
-**Rankify** and **Rerankers** have emerged to unify these capabilities, while specialized tools 
-address specific architectural paradigms and deployment requirements.
+reranking, and Retrieval-Augmented Generation (RAG). As the field has matured, the ecosystem has 
+stratified into distinct layers: **orchestration frameworks** (LlamaIndex, LangChain, Haystack), 
+**vector databases** (Milvus, Pinecone, Weaviate), **embedding libraries** (Sentence-Transformers, BGE), 
+and **specialized tools** for reranking, evaluation, and multi-modal retrieval.
 
-This comparison covers **30+ libraries** across five categories, with detailed analysis of:
+This comparison covers **50+ libraries** across eight categories, with detailed analysis of:
 
-* Architectural approaches and design philosophies
-* Supported models and methods
-* Performance characteristics and benchmarks
-* Integration patterns and deployment considerations
-* Research lineage and academic contributions
+* **Orchestration Frameworks**: LlamaIndex, LangChain, Haystack, Dify
+* **Vector Databases**: FAISS, Milvus, Pinecone, Weaviate, Qdrant, Chroma, pgvector, LanceDB
+* **Embedding Models**: BGE, GTE, E5, Jina, Instructor, SPLADE
+* **Late Interaction**: ColBERT, RAGatouille, PyLate, LFM2-ColBERT
+* **Reranking**: Rerankers, RankLLM, cross-encoders, LLM rerankers
+* **Research Toolkits**: Rankify, FlashRAG, AutoRAG
+* **Multi-Modal**: Byaldi, CLIP, Unstructured
+* **Evaluation**: BEIR, MTEB, RAGAS
 
 Taxonomy of Retrieval and Reranking Systems
 ============================================
@@ -112,6 +116,49 @@ Full-Stack RAG Systems
 
 End-to-end solutions for production RAG applications with integrated components.
 
+RAG Orchestration Frameworks
+----------------------------
+
+These are the major frameworks for building RAG applications with modular, composable components.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 12 8 8 10 62
+
+   * - Library
+     - Stars
+     - Created
+     - License
+     - Technical Details
+   * - **LlamaIndex**
+     - 40K+
+     - Nov 2022
+     - MIT
+     - **Architecture**: Data framework for LLM applications with focus on indexing and retrieval. **Key Features**: (1) 160+ data connectors (Notion, Slack, databases, APIs), (2) Multiple index types (vector, keyword, knowledge graph, SQL), (3) Advanced RAG patterns (sub-question, recursive, agentic), (4) Query engines and chat engines. **Retrieval**: VectorStoreIndex, TreeIndex, KeywordTableIndex, KnowledgeGraphIndex. **Unique**: LlamaParse for document parsing, LlamaCloud for managed service.
+   * - **LangChain**
+     - 100K+
+     - Oct 2022
+     - MIT
+     - **Architecture**: Modular framework for LLM application development. **Key Features**: (1) LCEL (LangChain Expression Language) for composable chains, (2) 700+ integrations (vector stores, LLMs, tools), (3) LangGraph for stateful agents, (4) LangSmith for observability. **Retrieval**: Extensive vector store support (FAISS, Pinecone, Chroma, Weaviate, etc.), document loaders, text splitters. **Ecosystem**: LangServe (deployment), LangGraph (agents), LangSmith (monitoring).
+   * - **Haystack**
+     - 18K+
+     - Nov 2019
+     - Apache 2.0
+     - **Architecture**: Production-ready NLP framework from deepset. **Key Features**: (1) Pipeline-based architecture with composable nodes, (2) Native support for RAG, QA, semantic search, (3) Document stores (Elasticsearch, OpenSearch, Pinecone, Weaviate), (4) Evaluation framework. **Retrieval**: BM25Retriever, EmbeddingRetriever, MultiModalRetriever. **Unique**: Oldest production RAG framework, strong enterprise focus, Haystack 2.0 with simplified API.
+   * - **Dify**
+     - 60K+
+     - Mar 2023
+     - Apache 2.0
+     - **Architecture**: LLMOps platform with visual workflow builder. **Key Features**: (1) No-code RAG pipeline builder, (2) Agent orchestration, (3) Built-in prompt IDE, (4) API-first design. **Retrieval**: Hybrid search, reranking, knowledge base management. **Unique**: Visual canvas for building AI workflows, enterprise-ready with SSO/RBAC.
+   * - **Verba**
+     - 6K+
+     - Jul 2023
+     - BSD-3
+     - **Architecture**: Weaviate-native RAG application. **Key Features**: (1) Beautiful UI out-of-box, (2) Hybrid search (dense + sparse), (3) Generative search with citations, (4) Multi-modal support. **Retrieval**: Weaviate vector search with BM25 fusion. **Unique**: Tightly integrated with Weaviate, excellent for demos and prototypes.
+
+Specialized RAG Systems
+-----------------------
+
 .. list-table::
    :header-rows: 1
    :widths: 12 8 8 10 62
@@ -147,7 +194,49 @@ End-to-end solutions for production RAG applications with integrated components.
      - Apache 2.0
      - **Architecture**: Full-stack Chinese RAG framework. **Key Features**: Native support for ChatGLM, Qwen, Llama. Multiple vector DB backends (FAISS, Milvus, PGVector). **Deployment**: Production-ready with API server and web UI.
 
-**Architectural Comparison:**
+**Orchestration Framework Comparison:**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 16 21 21 21 21
+
+   * - Feature
+     - LlamaIndex
+     - LangChain
+     - Haystack
+     - Dify
+   * - **Primary Focus**
+     - Data indexing
+     - LLM orchestration
+     - Production NLP
+     - No-code LLMOps
+   * - **Learning Curve**
+     - Medium
+     - Steep
+     - Medium
+     - Low
+   * - **Retrieval Methods**
+     - 10+ index types
+     - 50+ vector stores
+     - 5+ retrievers
+     - Built-in hybrid
+   * - **Agentic RAG**
+     - Built-in
+     - LangGraph
+     - Agents pipeline
+     - Visual builder
+   * - **Enterprise Ready**
+     - LlamaCloud
+     - LangSmith
+     - deepset Cloud
+     - Built-in
+   * - **Best For**
+     - Data-heavy RAG
+     - Complex chains
+     - Production search
+     - Rapid prototyping
+
+**Specialized RAG System Comparison:**
 
 .. list-table::
    :header-rows: 1
@@ -576,6 +665,117 @@ listwise reranking.
 results on TREC-DL and BEIR.
 
 **Repository**: https://github.com/castorini/rank_llm
+
+Vector Databases & Search Engines
+==================================
+
+Production-grade vector storage and similarity search infrastructure.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 12 8 8 10 62
+
+   * - Library
+     - Stars
+     - Type
+     - License
+     - Technical Details
+   * - **FAISS**
+     - 32K+
+     - Library
+     - MIT
+     - **Developer**: Meta AI. **Architecture**: CPU/GPU-optimized similarity search. **Key Features**: (1) Multiple index types (Flat, IVF, HNSW, PQ), (2) Billion-scale support, (3) GPU acceleration (CUDA). **Algorithms**: Product Quantization, Inverted File Index, HNSW graph. **Use Case**: Foundation for most vector search systems.
+   * - **Milvus**
+     - 32K+
+     - Database
+     - Apache 2.0
+     - **Developer**: Zilliz. **Architecture**: Cloud-native, distributed vector DB. **Key Features**: (1) Hybrid search (vector + scalar), (2) Multi-tenancy, (3) GPU index (CAGRA). **Indexes**: IVF_FLAT, IVF_PQ, HNSW, DiskANN. **Scale**: Trillion-scale vectors. **Managed**: Zilliz Cloud.
+   * - **Pinecone**
+     - Managed
+     - Service
+     - Proprietary
+     - **Architecture**: Fully managed vector database. **Key Features**: (1) Serverless deployment, (2) Hybrid search, (3) Metadata filtering, (4) Namespaces for multi-tenancy. **Performance**: Sub-100ms latency at scale. **Integrations**: LangChain, LlamaIndex, Haystack.
+   * - **Weaviate**
+     - 12K+
+     - Database
+     - BSD-3
+     - **Architecture**: AI-native vector database with modules. **Key Features**: (1) Built-in vectorization (text2vec, img2vec), (2) Hybrid BM25+vector, (3) Generative search, (4) Multi-modal. **Unique**: GraphQL API, schema-based. **Managed**: Weaviate Cloud.
+   * - **Chroma**
+     - 16K+
+     - Database
+     - Apache 2.0
+     - **Architecture**: Embedding database for AI applications. **Key Features**: (1) Simple Python API, (2) Persistent storage, (3) Metadata filtering. **Focus**: Developer experience, easy integration. **Use Case**: Prototyping, small-medium scale.
+   * - **Qdrant**
+     - 22K+
+     - Database
+     - Apache 2.0
+     - **Architecture**: High-performance vector search engine (Rust). **Key Features**: (1) Payload filtering, (2) Quantization (scalar, product, binary), (3) Distributed mode. **Performance**: Optimized for speed and accuracy. **Managed**: Qdrant Cloud.
+   * - **pgvector**
+     - 13K+
+     - Extension
+     - PostgreSQL
+     - **Architecture**: PostgreSQL extension for vector similarity. **Key Features**: (1) Native SQL integration, (2) HNSW and IVFFlat indexes, (3) Hybrid queries with relational data. **Unique**: Use existing Postgres infrastructure. **Use Case**: Teams already using PostgreSQL.
+   * - **LanceDB**
+     - 5K+
+     - Database
+     - Apache 2.0
+     - **Architecture**: Serverless vector database built on Lance format. **Key Features**: (1) Zero-copy, columnar storage, (2) Multi-modal (images, video), (3) Full-text search, (4) Built-in reranking. **Unique**: Embedded mode (no server), automatic versioning. **Use Case**: Local-first, multi-modal RAG.
+
+**Vector Database Comparison:**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 14 14 14 14 14 14 14
+
+   * - Feature
+     - FAISS
+     - Milvus
+     - Pinecone
+     - Weaviate
+     - Qdrant
+     - pgvector
+   * - **Deployment**
+     - Library
+     - Self/Cloud
+     - Managed
+     - Self/Cloud
+     - Self/Cloud
+     - Extension
+   * - **Scale**
+     - Billions
+     - Trillions
+     - Billions
+     - Billions
+     - Billions
+     - Millions
+   * - **Hybrid Search**
+     - No
+     - Yes
+     - Yes
+     - Yes
+     - Yes
+     - Via SQL
+   * - **GPU Support**
+     - Yes
+     - Yes
+     - N/A
+     - No
+     - No
+     - No
+   * - **Filtering**
+     - Limited
+     - Full
+     - Full
+     - Full
+     - Full
+     - SQL
+   * - **Best For**
+     - Research
+     - Enterprise
+     - Serverless
+     - AI-native
+     - Performance
+     - SQL teams
 
 Retrieval-Specialized Libraries
 ================================
@@ -1038,6 +1238,154 @@ retrieval while maintaining inference speed comparable to models 2.3x smaller.
 
 **Demo**: https://huggingface.co/spaces/LiquidAI/LFM2-ColBERT
 
+Learned Sparse Retrieval
+------------------------
+
+SPLADE
+^^^^^^
+
+**Overview**
+
+SPLADE (SParse Lexical AnD Expansion) learns sparse representations that combine the efficiency 
+of inverted indexes with neural semantic understanding.
+
+**Technical Specifications:**
+
+* **Architecture**: BERT-based with sparse output via log-saturation
+* **Output**: Sparse vectors (inverted index compatible)
+* **Key Innovation**: Learned term expansion and weighting
+* **Performance**: Competitive with dense on BEIR, better OOD generalization
+
+**Mechanism:**
+
+.. code-block:: text
+
+   Input: "What is machine learning?"
+   
+   Dense Output (bi-encoder):
+   [0.23, -0.15, 0.87, ...] (768 floats)
+   
+   SPLADE Output (sparse):
+   {"machine": 2.3, "learning": 1.8, "AI": 1.2, "algorithm": 0.9, ...}
+   (expandable to inverted index)
+
+**Research Paper**: "SPLADE: Sparse Lexical and Expansion Model for First Stage Ranking" 
+(SIGIR 2021, arXiv:2107.05720)
+
+**Repository**: https://github.com/naver/splade
+
+Neural-Cherche
+^^^^^^^^^^^^^^
+
+**Overview**
+
+Neural-Cherche is a neural search library supporting sparse (SPLADE), dense, and ColBERT 
+retrieval with a focus on simplicity and efficiency.
+
+**Technical Specifications:**
+
+* **Models**: SPLADE, SentenceTransformers, ColBERT
+* **Training**: Contrastive learning with hard negatives
+* **Indexing**: In-memory and disk-based
+* **Focus**: French and multilingual retrieval
+
+**Key Features:**
+
+* Unified API for sparse, dense, and late interaction
+* Easy fine-tuning on custom datasets
+* Integration with HuggingFace models
+
+**Repository**: https://github.com/raphaelsty/neural-cherche
+
+Instructor Embeddings
+^^^^^^^^^^^^^^^^^^^^^
+
+**Overview**
+
+Instructor is an instruction-finetuned text embedding model that can generate task-specific 
+embeddings by following natural language instructions.
+
+**Technical Specifications:**
+
+* **Base Model**: GTR (T5-based)
+* **Key Innovation**: Task instructions prepended to input
+* **Performance**: SOTA on MTEB at release (2022)
+
+**Usage Example:**
+
+.. code-block:: python
+
+   from InstructorEmbedding import INSTRUCTOR
+   
+   model = INSTRUCTOR('hkunlp/instructor-large')
+   
+   # Different instructions for different tasks
+   query = model.encode([["Represent the query for retrieval:", "What is Python?"]])
+   doc = model.encode([["Represent the document for retrieval:", "Python is a language..."]])
+
+**Research Paper**: "One Embedder, Any Task: Instruction-Finetuned Text Embeddings" 
+(arXiv:2212.09741, 2022)
+
+**Repository**: https://github.com/HKUNLP/instructor-embedding
+
+GTE (General Text Embeddings)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Overview**
+
+GTE is Alibaba's family of text embedding models, consistently ranking at the top of MTEB.
+
+**Model Variants:**
+
+* **gte-small/base/large**: Standard sizes (384/768/1024d)
+* **gte-Qwen2-7B-instruct**: LLM-based embeddings (SOTA on MTEB)
+* **gte-multilingual-base**: 70+ languages
+
+**Key Innovation**: Multi-stage training with diverse data and instruction tuning.
+
+**Repository**: https://huggingface.co/Alibaba-NLP
+
+E5 (EmbEddings from bidirEctional Encoder rEpresentations)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Overview**
+
+Microsoft's E5 family of embedding models, known for strong performance and efficiency.
+
+**Model Variants:**
+
+* **e5-small/base/large-v2**: Standard bi-encoders
+* **e5-mistral-7b-instruct**: LLM-based (top MTEB)
+* **multilingual-e5-large**: 100+ languages
+
+**Key Innovation**: Contrastive pre-training on 1B+ text pairs, instruction-tuned variants.
+
+**Research Paper**: "Text Embeddings by Weakly-Supervised Contrastive Pre-training" 
+(arXiv:2212.03533, 2022)
+
+**Repository**: https://huggingface.co/intfloat
+
+Jina Embeddings
+^^^^^^^^^^^^^^^
+
+**Overview**
+
+Jina AI's embedding models with focus on long context and multi-modal capabilities.
+
+**Model Variants:**
+
+* **jina-embeddings-v3**: 8K context, task-specific LoRA adapters
+* **jina-clip-v2**: Multi-modal (text + image)
+* **jina-colbert-v2**: Late interaction model
+
+**Key Features:**
+
+* Long context (8K tokens)
+* Multi-task via LoRA adapters
+* Matryoshka representations (variable dimensions)
+
+**Repository**: https://huggingface.co/jinaai
+
 Multi-Modal Retrieval
 ---------------------
 
@@ -1054,6 +1402,87 @@ image patches and text tokens.
 **Use Case**: PDF retrieval, document understanding, visual question answering.
 
 **Repository**: https://github.com/AnswerDotAI/byaldi
+
+CLIP & Variants
+^^^^^^^^^^^^^^^
+
+**Overview**
+
+OpenAI's CLIP (Contrastive Language-Image Pre-training) and its variants enable 
+cross-modal retrieval between text and images.
+
+**Key Variants:**
+
+* **OpenCLIP**: Open-source reproduction with larger models
+* **SigLIP**: Google's improved CLIP with sigmoid loss
+* **EVA-CLIP**: Scaled CLIP with better efficiency
+* **Jina-CLIP**: Optimized for retrieval tasks
+
+**Use Case**: Image search with text queries, zero-shot image classification.
+
+**Repository**: https://github.com/mlfoundations/open_clip
+
+Unstructured
+^^^^^^^^^^^^
+
+**Overview**
+
+Library for preprocessing unstructured data (PDFs, images, HTML) for RAG pipelines.
+
+**Supported Formats:**
+
+* Documents: PDF, DOCX, PPTX, XLSX, HTML, Markdown
+* Images: PNG, JPG with OCR
+* Email: EML, MSG
+* Code: Various programming languages
+
+**Key Features:**
+
+* Element-based chunking (titles, paragraphs, tables)
+* OCR integration (Tesseract, PaddleOCR)
+* Table extraction
+* Metadata preservation
+
+**Repository**: https://github.com/Unstructured-IO/unstructured
+
+Agentic RAG Frameworks
+----------------------
+
+CrewAI
+^^^^^^
+
+**Overview**
+
+Framework for orchestrating role-playing AI agents that collaborate on complex tasks.
+
+**Key Features:**
+
+* Role-based agent design
+* Task delegation and collaboration
+* Built-in tools for search, code execution
+* Sequential and hierarchical processes
+
+**Use Case**: Multi-agent RAG where different agents handle retrieval, analysis, and synthesis.
+
+**Repository**: https://github.com/crewAIInc/crewAI (18K+ stars)
+
+AutoGen
+^^^^^^^
+
+**Overview**
+
+Microsoft's framework for building multi-agent conversational AI systems.
+
+**Key Features:**
+
+* Conversable agents with customizable behaviors
+* Human-in-the-loop support
+* Code execution capabilities
+* Group chat for multi-agent collaboration
+
+**Use Case**: Complex RAG pipelines requiring multiple specialized agents.
+
+**Repository**: https://github.com/microsoft/autogen (35K+ stars)
 
 Benchmarking & Evaluation
 -------------------------
@@ -1260,8 +1689,17 @@ Decision Tree
    Start
      │
      ├─> Need full RAG system?
-     │     ├─> Yes ──> RAGFlow (enterprise) or LightRAG (lightweight)
-     │     └─> No ──> Continue
+     │     ├─> Enterprise/Production ──> RAGFlow, Dify, or Haystack
+     │     ├─> Rapid Prototyping ──> LlamaIndex or LangChain
+     │     ├─> Graph-based RAG ──> GraphRAG or LightRAG
+     │     └─> Research articles ──> STORM
+     │
+     ├─> Need vector database?
+     │     ├─> Managed service ──> Pinecone
+     │     ├─> Self-hosted scale ──> Milvus or Qdrant
+     │     ├─> AI-native features ──> Weaviate
+     │     ├─> Simple/Local ──> Chroma or LanceDB
+     │     └─> Existing PostgreSQL ──> pgvector
      │
      ├─> Focus on research/benchmarking?
      │     ├─> Yes ──> Rankify (comprehensive) or FlashRAG (RAG methods)
@@ -1273,16 +1711,29 @@ Decision Tree
      │
      ├─> Need embeddings/retrieval?
      │     ├─> Train custom embeddings ──> Contrastors or FlagEmbedding
-     │     ├─> Dense (inference) ──> Sentence-Transformers or BGE
+     │     ├─> Dense (inference) ──> Sentence-Transformers, BGE, GTE, or E5
      │     ├─> Late Interaction ──> RAGatouille, ColBERT, or PyLate
      │     │     └─> Cross-lingual ──> LFM2-ColBERT
-     │     ├─> Sparse ──> Pyserini
-     │     ├─> Hybrid ──> SPLADE or Neural-Cherche
-     │     └─> Multilingual (100+ langs) ──> BGE-M3
+     │     ├─> Sparse (BM25) ──> Pyserini
+     │     ├─> Learned Sparse ──> SPLADE or Neural-Cherche
+     │     ├─> Task-specific ──> Instructor
+     │     ├─> Long context (8K+) ──> Jina-v3 or BGE-M3
+     │     └─> Multilingual (100+ langs) ──> BGE-M3 or E5-multilingual
+     │
+     ├─> Need multi-modal?
+     │     ├─> Document/PDF retrieval ──> Byaldi (ColPali)
+     │     ├─> Image-text search ──> CLIP / OpenCLIP
+     │     └─> Document parsing ──> Unstructured
+     │
+     ├─> Need multi-agent RAG?
+     │     ├─> Role-based agents ──> CrewAI
+     │     ├─> Conversational agents ──> AutoGen
+     │     └─> Stateful workflows ──> LangGraph
      │
      └─> Need evaluation?
            ├─> Retrieval ──> BEIR
-           └─> Embeddings ──> MTEB
+           ├─> Embeddings ──> MTEB
+           └─> RAG quality ──> RAGAS
 
 By Use Case
 -----------
@@ -1294,23 +1745,53 @@ By Use Case
 3. **BEIR/MTEB**: Standardized evaluation
 4. **Pyserini**: Reproducible baselines
 
-**Production RAG:**
+**Production RAG (Enterprise):**
 
-1. **RAGFlow**: Full-stack enterprise solution
-2. **Rerankers**: Lightweight reranking
-3. **Sentence-Transformers**: Embeddings
-4. **RAGatouille**: ColBERT integration
+1. **RAGFlow**: Full-stack with deep document parsing
+2. **Haystack**: Battle-tested NLP framework
+3. **Dify**: No-code with visual builder
+4. **Milvus/Qdrant**: Scalable vector storage
+
+**Rapid Prototyping:**
+
+1. **LlamaIndex**: Best for data-heavy applications
+2. **LangChain**: Most integrations and flexibility
+3. **Chroma**: Simple local vector store
+4. **Verba**: Beautiful UI out-of-box
+
+**Production Reranking:**
+
+1. **Rerankers**: Lightweight, unified API
+2. **Cohere Rerank**: API-based, high quality
+3. **ColBERT/RAGatouille**: Late interaction
 
 **Resource-Constrained:**
 
 1. **FlashRank**: ONNX-optimized, CPU-friendly
 2. **RAGLite**: SQL-based, minimal dependencies
 3. **Rerankers**: Dependency-free core
+4. **LanceDB**: Embedded, no server required
 
 **Multi-Modal:**
 
-1. **Byaldi**: ColPali for vision-language
+1. **Byaldi**: ColPali for vision-language documents
 2. **Rerankers**: MonoQwen2-VL support
+3. **OpenCLIP**: Image-text retrieval
+4. **Unstructured**: Document preprocessing
+
+**Multi-Agent RAG:**
+
+1. **CrewAI**: Role-based collaboration
+2. **AutoGen**: Conversational agents
+3. **LangGraph**: Stateful workflows
+4. **STORM**: Research article generation
+
+**Multilingual:**
+
+1. **BGE-M3**: 100+ languages, hybrid retrieval
+2. **E5-multilingual**: Strong cross-lingual
+3. **LFM2-ColBERT**: Cross-lingual late interaction
+4. **Jina-v3**: 8K context, multilingual
 
 Future Trends
 =============
@@ -1379,12 +1860,30 @@ References
 Repository Links
 ================
 
-**Full-Stack RAG:**
+**RAG Orchestration Frameworks:**
+
+* LlamaIndex: https://github.com/run-llama/llama_index
+* LangChain: https://github.com/langchain-ai/langchain
+* Haystack: https://github.com/deepset-ai/haystack
+* Dify: https://github.com/langgenius/dify
+* Verba: https://github.com/weaviate/Verba
+
+**Specialized RAG Systems:**
 
 * RAGFlow: https://github.com/infiniflow/ragflow
 * GraphRAG: https://github.com/microsoft/graphrag
 * LightRAG: https://github.com/HKUDS/LightRAG
 * STORM: https://github.com/stanford-oval/storm
+
+**Vector Databases:**
+
+* FAISS: https://github.com/facebookresearch/faiss
+* Milvus: https://github.com/milvus-io/milvus
+* Weaviate: https://github.com/weaviate/weaviate
+* Chroma: https://github.com/chroma-core/chroma
+* Qdrant: https://github.com/qdrant/qdrant
+* pgvector: https://github.com/pgvector/pgvector
+* LanceDB: https://github.com/lancedb/lancedb
 
 **Research Toolkits:**
 
@@ -1405,12 +1904,29 @@ Repository Links
 * Contrastors: https://github.com/nomic-ai/contrastors
 * ColBERT: https://github.com/stanford-futuredata/ColBERT
 * RAGatouille: https://github.com/AnswerDotAI/RAGatouille
+* PyLate: https://github.com/lightonai/pylate
 * Pyserini: https://github.com/castorini/pyserini
+* SPLADE: https://github.com/naver/splade
+* Neural-Cherche: https://github.com/raphaelsty/neural-cherche
+* Instructor: https://github.com/HKUNLP/instructor-embedding
+
+**Multi-Modal:**
+
+* Byaldi: https://github.com/AnswerDotAI/byaldi
+* OpenCLIP: https://github.com/mlfoundations/open_clip
+* Unstructured: https://github.com/Unstructured-IO/unstructured
+
+**Agentic Frameworks:**
+
+* CrewAI: https://github.com/crewAIInc/crewAI
+* AutoGen: https://github.com/microsoft/autogen
+* LangGraph: https://github.com/langchain-ai/langgraph
 
 **Evaluation:**
 
 * BEIR: https://github.com/beir-cellar/beir
 * MTEB: https://github.com/embeddings-benchmark/mteb
+* RAGAS: https://github.com/explodinggradients/ragas
 
 .. note::
 
