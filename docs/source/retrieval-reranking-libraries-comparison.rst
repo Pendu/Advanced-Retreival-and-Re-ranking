@@ -292,6 +292,153 @@ standardized implementations of 10+ RAG algorithms.
 
 **Repository**: https://github.com/RUC-NLPIR/FlashRAG
 
+AutoRAG: Automated RAG Pipeline Optimization
+--------------------------------------------
+
+**Overview**
+
+AutoRAG is an open-source framework that automatically identifies the optimal combination of 
+RAG modules for a given dataset using AutoML-style automation. Instead of manually tuning 
+retrieval, reranking, and generation components, AutoRAG systematically evaluates combinations 
+and selects the best pipeline.
+
+**Technical Specifications:**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Component
+     - Details
+   * - **Node Types**
+     - Query Expansion, Retrieval (BM25, Vector, Hybrid), Reranking, Prompt Making, Generation
+   * - **Retrieval Methods**
+     - BM25, VectorDB (dense), Hybrid RRF with tunable weights
+   * - **Evaluation Metrics**
+     - Retrieval: F1, Recall, nDCG, MRR; Generation: METEOR, ROUGE, Semantic Score
+   * - **Optimization**
+     - Grid search over module combinations with automatic best-pipeline selection
+   * - **Deployment**
+     - Code API, REST API server, Web interface, Dashboard
+
+**Key Innovation: AutoML for RAG**
+
+AutoRAG treats RAG pipeline construction as a hyperparameter optimization problem:
+
+.. code-block:: text
+
+   ┌─────────────────────────────────────────────────────────────────────┐
+   │                      AutoRAG Optimization Flow                      │
+   ├─────────────────────────────────────────────────────────────────────┤
+   │                                                                     │
+   │   Dataset (QA pairs + Corpus)                                       │
+   │         │                                                           │
+   │         ▼                                                           │
+   │   ┌─────────────────────────────────────────────────────────────┐  │
+   │   │  Node Line 1: Retrieval                                      │  │
+   │   │  ┌─────────┐  ┌─────────┐  ┌─────────┐                      │  │
+   │   │  │  BM25   │  │ VectorDB│  │ Hybrid  │  → Evaluate each     │  │
+   │   │  └─────────┘  └─────────┘  └─────────┘                      │  │
+   │   └─────────────────────────────────────────────────────────────┘  │
+   │         │                                                           │
+   │         ▼                                                           │
+   │   ┌─────────────────────────────────────────────────────────────┐  │
+   │   │  Node Line 2: Post-Retrieval                                 │  │
+   │   │  ┌─────────┐  ┌─────────┐                                   │  │
+   │   │  │ Prompt  │  │Generator│  → Evaluate combinations          │  │
+   │   │  │ Maker   │  │ (GPT-4o)│                                   │  │
+   │   │  └─────────┘  └─────────┘                                   │  │
+   │   └─────────────────────────────────────────────────────────────┘  │
+   │         │                                                           │
+   │         ▼                                                           │
+   │   Best Pipeline (summary.csv) + Dashboard                          │
+   │                                                                     │
+   └─────────────────────────────────────────────────────────────────────┘
+
+**Usage Example:**
+
+.. code-block:: python
+
+   from autorag.evaluator import Evaluator
+   
+   # Define your QA dataset and corpus
+   evaluator = Evaluator(
+       qa_data_path='qa.parquet',
+       corpus_data_path='corpus.parquet'
+   )
+   
+   # Run optimization trial with config
+   evaluator.start_trial('config.yaml')
+   
+   # Deploy the best pipeline
+   from autorag.deploy import Runner
+   runner = Runner.from_trial_folder('/path/to/trial_dir')
+   answer = runner.run('What is the capital of France?')
+
+**Pros:**
+
+* **Automated Optimization**: No manual tuning—AutoRAG finds the best module combination
+* **Comprehensive Evaluation**: Evaluates both retrieval quality (nDCG, MRR) and generation quality (ROUGE, METEOR)
+* **Production-Ready Deployment**: Built-in API server, web interface, and dashboard
+* **Modular Architecture**: Easy to add custom modules and metrics
+* **Reproducibility**: YAML configs capture full pipeline specification
+
+**Limitations/Critique:**
+
+* **Compute Cost**: Exhaustive search over module combinations can be expensive
+* **Dataset Dependency**: Optimal pipeline is specific to evaluation dataset—may not generalize
+* **Limited Advanced Techniques**: Doesn't include cutting-edge methods like ColBERT, SPLADE, or LLM rerankers (RankGPT)
+* **Cold Start Problem**: Requires labeled QA pairs for evaluation—not suitable for unlabeled corpora
+
+**Comparison with Similar Tools:**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 20 20 20 20
+
+   * - Feature
+     - AutoRAG
+     - Rankify
+     - FlashRAG
+     - RAGFlow
+   * - **Primary Goal**
+     - Pipeline optimization
+     - Benchmarking
+     - RAG methods
+     - Production RAG
+   * - **Automation**
+     - Full AutoML
+     - Manual
+     - Manual
+     - Manual
+   * - **Deployment**
+     - API + Web + Dashboard
+     - Code only
+     - Code only
+     - Full stack
+   * - **Module Coverage**
+     - Medium
+     - High
+     - High
+     - Medium
+   * - **Best For**
+     - Finding optimal config
+     - Research comparison
+     - RAG algorithms
+     - Enterprise apps
+
+**When to Use AutoRAG:**
+
+* You have a labeled QA dataset and want to find the best RAG configuration
+* You want to systematically compare retrieval/generation combinations
+* You need a deployable pipeline with minimal manual tuning
+* You're building a domain-specific RAG system and need to optimize for your data
+
+**Research Paper:** Kim, D., Kim, B., Han, D., & Eibich, M. (2024). "AutoRAG: Automated Framework 
+for optimization of Retrieval Augmented Generation Pipeline." `arXiv:2410.20878 <https://arxiv.org/abs/2410.20878>`_
+
+**Repository**: https://github.com/Marker-Inc-Korea/AutoRAG
+
 Other Research Toolkits
 -----------------------
 
@@ -1243,6 +1390,7 @@ Repository Links
 
 * Rankify: https://github.com/DataScienceUIBK/Rankify
 * FlashRAG: https://github.com/RUC-NLPIR/FlashRAG
+* AutoRAG: https://github.com/Marker-Inc-Korea/AutoRAG
 * FastRAG: https://github.com/IntelLabs/fastRAG
 
 **Reranking:**
