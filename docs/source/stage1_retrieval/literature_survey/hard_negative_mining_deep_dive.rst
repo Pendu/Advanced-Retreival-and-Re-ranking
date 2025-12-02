@@ -51,6 +51,28 @@ where \(\tau\) is a similarity threshold (typically top-k retrieval rank or scor
 **The Goldilocks Principle**: Optimal negatives are "just right" — hard enough to provide 
 learning signal, but not so hard they're likely false negatives.
 
+**The Critical Tension**: The hardest negatives (highest similarity to query) are also 
+the most likely to be **false negatives** (actually relevant but unlabeled). This tension 
+is the central challenge that advanced mining strategies address:
+
+.. code-block:: text
+
+   Similarity Score to Query
+   0.0                    0.5                    0.8        1.0
+   ├──────────────────────┼──────────────────────┼──────────┤
+   │                      │                      │          │
+   │   EASY NEGATIVES     │   HARD NEGATIVES     │  FALSE   │
+   │                      │   (Goldilocks Zone)  │NEGATIVES │
+   │                      │                      │          │
+   │  Score ≈ 0.0-0.3     │  Score ≈ 0.3-0.7     │ Score >  │
+   │  Gradient ≈ 0        │  Gradient is HIGH    │ 0.7-0.8  │
+   │  (no learning)       │  (optimal learning)  │ (wrong   │
+   │                      │                      │ gradient)│
+   └──────────────────────┴──────────────────────┴──────────┘
+   
+   Key: The "Goldilocks Zone" provides high gradient (learning signal) 
+        while minimizing false negative risk.
+
 Ecosystem-Wide Hard Negative Mining Support
 -------------------------------------------
 
@@ -64,7 +86,7 @@ This analysis reveals the gap that a unified mining library could fill.
 * ❌ = Not supported
 * N/A = Not applicable (inference-only library)
 
-.. list-table:: Hard Negative Mining Support by Library
+.. list-table:: Hard Negative Mining Support by Library (Training Time)
    :header-rows: 1
    :widths: 18 8 8 8 8 8 8 8 8 8 10
 
@@ -84,12 +106,12 @@ This analysis reveals the gap that a unified mining library could fill.
      - ✅
      - ✅
      - ❌
-     - 🔧
+     - ✅
      - ❌
      - ❌
      - ❌
      - ❌
-     - ``mine_hard_negatives()`` utility
+     - ``CachedMNRL`` + CE filtering
    * - **FlagEmbedding (BGE)**
      - ✅
      - ✅
@@ -126,14 +148,14 @@ This analysis reveals the gap that a unified mining library could fill.
    * - **ColBERT (Stanford)**
      - ✅
      - ✅
-     - ❌
+     - 🔧
      - ❌
      - ✅
      - ❌
      - ❌
      - ❌
      - ❌
-     - Distillation in v2
+     - Score filtering in v2 distillation
    * - **RAGatouille**
      - N/A
      - N/A
@@ -344,28 +366,41 @@ Training Pipeline
 According to the `ColBERTv2 paper (Santhanam et al., NAACL 2022) 
 <https://aclanthology.org/2022.naacl-main.272/>`_:
 
-**1. Knowledge Distillation from Cross-Encoder**
+.. important::
 
-ColBERTv2 uses a **cross-encoder teacher** to generate soft labels and mine hard negatives:
+   ColBERTv2 uses a **two-stage training approach**, not simultaneous distillation:
+   
+   1. **Stage 1**: Train ColBERT with standard BM25 hard negatives + in-batch negatives
+   2. **Stage 2**: Apply cross-encoder distillation for denoising in a second training phase
+   
+   The paper states: *"we start with a ColBERT model trained with triples as in Khattab 
+   and Zaharia (2020)"* — the distillation happens after initial training.
+
+**Stage 1: Initial Training with Hard Negatives**
 
 .. code-block:: text
 
-   Training Pipeline:
-   1. Cross-encoder scores all (query, passage) pairs
-   2. Hard negatives = high-scoring passages that aren't the gold positive
-   3. ColBERT student learns from both:
+   Initial Training:
+   1. Mine hard negatives using BM25 (top-k passages that don't contain answer)
+   2. Combine with in-batch negatives during training
+   3. Train ColBERT with standard contrastive loss
+
+**Stage 2: Cross-Encoder Distillation (Denoising)**
+
+.. code-block:: text
+
+   Distillation Pipeline:
+   1. Cross-encoder teacher scores all (query, passage) pairs
+   2. High-scoring "negatives" are identified as potential false negatives
+   3. ColBERT student learns from:
       - Hard labels (gold positives)
-      - Soft labels (cross-encoder scores on negatives)
+      - Soft labels (cross-encoder scores) — this denoises false negatives
 
-**2. Denoised Supervision**
+**Why Two Stages?** The initial BM25-trained model provides a reasonable starting point. 
+Cross-encoder distillation then refines the model by addressing false negatives that 
+BM25 mining inevitably introduces.
 
-ColBERTv2 specifically addresses the **false negative problem**:
-
-* Uses cross-encoder to identify passages that are actually relevant but unlabeled
-* Filters these out or assigns appropriate soft labels
-* This is essentially the "denoising" technique from RocketQA
-
-**3. Residual Compression Training**
+**Residual Compression Training**
 
 The compressed representations are trained with hard negatives to maintain discrimination.
 
@@ -450,8 +485,15 @@ From the ColBERT codebase, the actual sampling works as follows:
 Existing Implementations Analyzed
 =================================
 
-Nomic AI Contrastors
---------------------
+This section analyzes existing implementations, separated into **production-ready libraries** 
+(maintained, documented, pip-installable) and **research implementations** (paper repos, 
+often unmaintained).
+
+Production-Ready Libraries
+--------------------------
+
+Contrastors (Nomic AI)
+^^^^^^^^^^^^^^^^^^^^^^
 
 The `Contrastors library <https://github.com/nomic-ai/contrastors>`_ includes a hard 
 negative mining script that wraps sentence-transformers functionality.
@@ -535,8 +577,8 @@ negative mining script that wraps sentence-transformers functionality.
    * - Scale
      - FAISS support for large corpora
 
-PyLate (ColBERT Training)
--------------------------
+PyLate
+^^^^^^
 
 PyLate uses a simpler approach inherited from ColBERT:
 
@@ -576,8 +618,14 @@ PyLate uses a simpler approach inherited from ColBERT:
      - ❌ Separate
      - ✅ Built-in
 
+Research Implementations (Paper Repos)
+--------------------------------------
+
+These implementations exist in paper repositories but are **not production-ready**: 
+often unmaintained, tied to specific architectures, or lacking documentation.
+
 Hard Negative Mixing (MixGEN)
------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The `hard-negative-mixing <https://github.com/davidsvy/hard-negative-mixing>`_ library 
 implements a different approach: **synthetic hard negative generation** via embedding 
@@ -697,14 +745,19 @@ stationary point of the true contrastive objective, while static negative sampli
                # Mine new hard negatives
                hard_negatives = index.search(queries, top_k=100)
 
-ADORE: Query-Side Finetuning
-----------------------------
+ADORE: Query-Encoder Finetuning
+--------------------------------
 
 **Paper**: `Optimizing Dense Retrieval Model Training with Hard Negatives 
 <https://arxiv.org/abs/2104.08051>`_ (SIGIR 2021)
 
-**Theory**: Instead of refreshing the document index (expensive), only update the 
-**query encoder** while keeping document embeddings fixed.
+**Theory**: Instead of refreshing the document index (expensive), only finetune the 
+**query encoder** while keeping the document encoder and its embeddings fixed.
+
+.. note::
+
+   "Query-side finetuning" means finetuning the **query encoder during training**, 
+   NOT query-time optimization. The document encoder remains frozen after initial training.
 
 .. code-block:: text
 
@@ -723,6 +776,28 @@ ADORE: Query-Side Finetuning
 * Proves that query-side optimization is sufficient for learning hard negatives
 * Document representations are already "good enough" after initial training
 * Reduces computational cost from O(N) index rebuild to O(1)
+
+**Why Freezing Helps Beyond Efficiency**:
+
+Freezing the document encoder provides a **stability benefit**, not just computational savings:
+
+.. code-block:: text
+
+   ANCE Problem: "Chasing a Moving Target"
+   ───────────────────────────────────────
+   Step 1000: Query learns to find hard negatives in Doc Space v1
+   Step 2000: Doc Space changes to v2 → previous learning partially invalidated
+   Step 3000: Query adapts to v2, but Doc Space is now v3...
+   
+   ADORE Solution: "Fixed Target"
+   ──────────────────────────────
+   Doc Space is FIXED after initial training
+   Query encoder learns to navigate this stable space
+   → Allows harder negatives without instability
+   → More aggressive mining is safe
+
+This stability allows ADORE to use **harder negatives** than standard ANCE without 
+the risk of training divergence.
 
 RocketQA: Cross-Batch Negatives + Denoising
 -------------------------------------------
@@ -904,11 +979,20 @@ bottom-ranked candidates (too easy), SimANS balances informativeness with label 
 Synthetic Generation Methods
 ============================
 
+.. warning::
+
+   **Experimental / High-Compute Methods**
+   
+   The methods in this section require significant computational resources (LLM inference) 
+   and are not yet production-ready. They represent cutting-edge research directions.
+
 SyNeg: LLM-Synthetic Negatives
 ------------------------------
 
 **Paper**: `SyNeg: LLM-Driven Synthetic Hard Negatives 
 <https://arxiv.org/abs/2412.17250>`_ (arXiv 2024)
+
+**Status**: 🧪 **Experimental** — Very recent research (2024), high compute cost.
 
 **Key Innovation**: Uses LLMs to generate text that is semantically similar but 
 factually contradictory — creating "maximally hard" negatives that cannot be false negatives.
@@ -933,7 +1017,26 @@ factually contradictory — creating "maximally hard" negatives that cannot be f
 2. **Definitely not relevant** (factually contradictory)
 3. **Novel** (not limited to corpus documents)
 
-**Limitation**: Requires LLM inference, which is computationally expensive for large-scale training.
+**Cost Analysis**:
+
+.. code-block:: text
+
+   MS MARCO scale (500K queries):
+   
+   LLM API Cost (GPT-4o-mini @ $0.15/1M tokens):
+   - ~500 tokens per generation
+   - 500K queries × 500 tokens = 250M tokens
+   - Cost: ~$37.50 per negative per query
+   - For 10 negatives: ~$375
+   
+   Local LLM (Llama-3-8B):
+   - ~50 tokens/sec on A100
+   - 500K × 500 tokens ÷ 50 = 139 hours
+   - Much cheaper but still significant
+
+**Recommendation**: Use SyNeg for **high-value, small-scale** applications (e.g., 
+domain-specific fine-tuning with <10K queries) rather than large-scale pretraining. 
+For most use cases, **BM25 + denoising** is more practical.
 
 Quantitative Impact of Mining Strategies
 =========================================
@@ -941,81 +1044,178 @@ Quantitative Impact of Mining Strategies
 To justify the need for a unified library, we summarize published benchmark results 
 showing the impact of different mining strategies.
 
+Understanding MRR@10
+--------------------
+
+**MRR@10 (Mean Reciprocal Rank at 10)** is the official MS MARCO passage ranking metric:
+
+.. math::
+
+   \text{MRR@10} = \frac{1}{|Q|} \sum_{i=1}^{|Q|} \frac{1}{\text{rank}_i} \quad \text{where } \text{rank}_i \leq 10
+
+* Measures the average inverse rank of the **first relevant passage** in the top-10 results
+* Scores range from 0 to 1 (higher is better)
+* **Typical SOTA performance**: 0.38-0.42 on MS MARCO Dev
+* A score of 0.40 means, on average, the first relevant result appears at rank 2.5
+
 MS MARCO Passage Ranking (MRR@10)
 ---------------------------------
 
 .. list-table:: Impact of Mining Strategies on MS MARCO Dev
    :header-rows: 1
-   :widths: 35 20 25 20
+   :widths: 30 25 15 15 15
 
    * - Method
      - Mining Strategy
      - MRR@10
-     - Δ vs Baseline
-   * - DPR (baseline)
-     - Random + BM25
-     - 0.311
+     - Δ Absolute
+     - Δ Relative
+   * - BM25 (baseline)
+     - Lexical only
+     - 0.187
      - —
+     - —
+   * - DPR
+     - Random + BM25 static
+     - 0.314
+     - +12.7
+     - +68%
    * - DPR + In-Batch
      - In-batch negatives
      - 0.326
-     - +1.5%
+     - +1.2
+     - +4%
    * - ANCE
      - Dynamic ANN refresh
      - 0.330
-     - +1.9%
-   * - RocketQA
-     - Cross-batch + denoising
-     - 0.370
-     - +5.9%
-   * - ColBERTv2
-     - BM25 + CE distillation
-     - 0.397
-     - +8.6%
+     - +1.6
+     - +5%
    * - SimANS
      - Ambiguous zone
      - 0.341
-     - +3.0%
+     - +2.7
+     - +9%
+   * - RocketQA
+     - Cross-batch + denoising
+     - 0.370
+     - +5.6
+     - +18%
+   * - ColBERTv2
+     - BM25 + CE distillation
+     - 0.397
+     - +8.3
+     - +26%
 
-*Sources: Original papers. Results may vary with implementation details.*
+*Sources: Original papers (Karpukhin 2020, Xiong 2021, Zhou 2022, Qu 2021, Santhanam 2022). 
+Results may vary with implementation details and hyperparameters.*
 
-**Key Observation**: Mining strategy choice can account for **3-9% absolute improvement** 
-in MRR@10, which is often larger than architectural changes.
+**Key Observations**: 
+
+1. Mining strategy choice accounts for **+1.6 to +8.3 absolute MRR@10 improvement**
+2. This is often **larger than architectural changes** (e.g., BERT-base vs BERT-large)
+3. **Denoising** (RocketQA, ColBERTv2) provides the largest gains by addressing false negatives
+4. **Dynamic mining** (ANCE) shows modest but consistent improvement over static methods
 
 Computational Trade-offs
 ------------------------
 
 .. list-table:: Computational Cost of Mining Strategies
    :header-rows: 1
-   :widths: 25 20 20 35
+   :widths: 20 18 18 18 26
 
    * - Strategy
      - Pre-training Cost
-     - Training Cost
+     - Per-Step Cost
+     - Memory
      - Notes
    * - In-Batch
      - None
      - O(B²)
-     - B = batch size
+     - O(B × d)
+     - B = batch size, d = dim
    * - Static BM25
      - O(N log N)
      - O(1)
-     - One-time index build
+     - O(K × N)
+     - One-time; K negs/query
    * - Dynamic ANN (ANCE)
      - O(N) per refresh
-     - O(K log N)
+     - O(log N)
+     - O(N × d)
      - Refresh every ~1K steps
    * - Cross-Encoder Denoising
-     - O(N × K)
+     - O(Q × K × T)
      - O(1)
-     - K candidates per query
+     - O(K)
+     - T = CE inference time
+   * - Cross-Batch
+     - None
+     - O(G × B²)
+     - O(G × B × d)
+     - G = num GPUs
+   * - SimANS
+     - O(N log N)
+     - O(K)
+     - O(K)
+     - Score sorting only
    * - LLM-Synthetic
-     - O(N × L)
+     - O(Q × L)
      - O(1)
-     - L = LLM inference cost
+     - O(1)
+     - L = LLM cost per query
 
-**Trade-off**: More sophisticated mining generally improves quality but increases 
-computational cost. A unified library should make this trade-off explicit and configurable.
+**Practical Estimates** (MS MARCO scale: 8.8M passages, 500K queries):
+
+.. list-table:: Real-World Time Estimates
+   :header-rows: 1
+   :widths: 30 25 25 20
+
+   * - Strategy
+     - Preprocessing Time
+     - Training Overhead
+     - GPU Memory
+   * - In-Batch only
+     - 0
+     - Baseline
+     - ~8GB
+   * - Static BM25
+     - ~2 hours
+     - +0%
+     - ~8GB
+   * - ANCE (refresh/5K steps)
+     - 0
+     - +50-100%
+     - ~16GB (index)
+   * - CE Denoising
+     - ~24 hours
+     - +0%
+     - ~8GB
+   * - Cross-Batch (8 GPUs)
+     - 0
+     - +10%
+     - ~12GB/GPU
+
+**Trade-off Summary**: More sophisticated mining generally improves quality but increases 
+computational cost. A unified library should make this trade-off explicit and configurable:
+
+* **Best quality/cost ratio**: Static BM25 + denoising (one-time preprocessing, no training overhead)
+* **Best quality**: ANCE + denoising (but 2x training time)
+* **Fastest**: In-batch only (but lowest quality)
+
+.. important::
+
+   **Why Denoising is the Industry Standard**
+   
+   Dynamic ANCE mining (re-indexing 8.8M passages every 5K steps) is operationally 
+   expensive — it essentially pauses training for significant periods. This is why 
+   **static mining + denoising** (ColBERTv2/RocketQA style) dominates production:
+   
+   * Achieves ~80% of dynamic mining gains with ~10% of the engineering complexity
+   * One-time preprocessing cost, zero training overhead
+   * No "chasing a moving target" instability
+   
+   **This insight shapes our library design**: The highest-value contribution is making 
+   sophisticated *static* filtering (denoising) accessible, not dynamic ANCE.
 
 MUVERA: Multi-Vector Efficiency (Not Mining)
 ============================================
@@ -1032,10 +1232,394 @@ MUVERA assumes you already have a trained ColBERT-style model and makes it faste
 Proposed Library Design
 =======================
 
-Based on this analysis, here's a proposed design for a unified hard mining library:
+Based on this analysis, here's a proposed design for a unified hard mining library.
 
-API Design
-----------
+.. _critical-architecture:
+
+.. important::
+
+   **🚨 Critical Architectural Insight: Why This is Harder Than ``rerankers``**
+   
+   The comparison to ``rerankers`` is tempting but **architecturally misleading**:
+   
+   * ``rerankers`` is an **inference** library — stateless, sits outside the loop
+   * ``hardminers`` is a **training utility** — stateful, coupled to the loop
+   
+   This changes the physics of the problem entirely. The following sections explain 
+   the specific challenges and our architectural response.
+
+Why ``rerankers`` is Easy, ``hardminers`` is Hard
+-------------------------------------------------
+
+.. list-table:: Architectural Comparison
+   :header-rows: 1
+   :widths: 20 40 40
+
+   * - Dimension
+     - ``rerankers`` (Inference)
+     - ``hardminers`` (Training)
+   * - **Statefulness**
+     - Stateless: pass query + docs, get scores
+     - **Stateful**: needs entire corpus (8.8M passages)
+   * - **Loop Coupling**
+     - Outside the loop: retrieval → reranking (linear)
+     - **Inside the loop**: model ↔ index ↔ negatives (circular)
+   * - **Distributed**
+     - 8 GPUs = 8 independent copies
+     - **Cross-batch needs GPU communication** (DDP nightmare)
+   * - **Compute**
+     - Re-ranks 50-100 docs in milliseconds
+     - **Re-encodes millions of docs** (hours/days)
+   * - **User Data**
+     - Doesn't care how you store data
+     - **Must handle JSONL, Parquet, SQL, Arrow, Vector DBs**
+
+The Four Engineering Cliffs
+---------------------------
+
+.. warning::
+
+   **Cliff #1: The Statefulness Trap**
+   
+   To mine negatives, you need access to the **entire corpus**. Your library cannot 
+   just be a function call — it needs to manage a massive index (FAISS, HNSW).
+   
+   *Challenge*: "How do I load the user's 10GB corpus without crashing their RAM?"
+
+.. warning::
+
+   **Cliff #2: The Loop Coupling Problem**
+   
+   Dynamic mining (ANCE) creates a **circular dependency**:
+   
+   1. Trainer updates Model
+   2. Miner needs *current* Model to re-encode corpus
+   3. Miner updates Index
+   4. Miner gives new negatives to Trainer → goto 1
+   
+   *Challenge*: How do you inject into HuggingFace Trainer, PyTorch Lightning, 
+   Accelerate, or raw PyTorch? You need a **Callback System**, not a function.
+
+.. warning::
+
+   **Cliff #3: The Distributed Nightmare (DDP)**
+   
+   Cross-batch negatives require gathering embeddings across all GPUs. ANCE refresh 
+   requires coordinating index updates across workers.
+   
+   *Challenge*: You will spend 50% of dev time debugging ``torch.distributed`` errors.
+
+.. warning::
+
+   **Cliff #4: The Compute Cost Trap**
+   
+   If your library defaults to "best practices" (ANCE), users will run it on their 
+   laptop and it will hang forever.
+   
+   *Challenge*: Need safety warnings: *"Dynamic mining on 10M docs without GPU index 
+   will take 4 days. Switch to approximate mode?"*
+
+The Correct Architecture: Two Distinct Tools
+--------------------------------------------
+
+.. important::
+
+   **Key Insight: Don't try to be ``rerankers`` (a simple wrapper). Be modular components.**
+   
+   Instead of one giant ``miner.mine()`` black box, split into two distinct tool types:
+   
+   * **Offline Miners** (preprocessing, decoupled from training)
+   * **Online Callbacks** (integrated into training frameworks)
+
+**Phase 1: Offline Miners (The Realistic MVP)**
+
+This is the ``rerankers``-equivalent — high value, achievable, fits "pip install and run":
+
+.. code-block:: text
+
+   ┌─────────────────────────────────────────────────────────────────┐
+   │                    OFFLINE MINING (Phase 1)                     │
+   ├─────────────────────────────────────────────────────────────────┤
+   │                                                                 │
+   │  Input:  Corpus + Queries + Positives                          │
+   │          (JSONL, Parquet, Arrow, HuggingFace Dataset)          │
+   │                                                                 │
+   │  Process: BM25 → SimANS → Cross-Encoder Denoising              │
+   │                                                                 │
+   │  Output: .jsonl or .arrow file with:                           │
+   │          (query, positive, hard_neg_1, hard_neg_2, ...)        │
+   │                                                                 │
+   │  ✅ Decoupled from training loop                                │
+   │  ✅ Works with ANY trainer                                      │
+   │  ✅ Solves fragmentation without coupling headache              │
+   │                                                                 │
+   └─────────────────────────────────────────────────────────────────┘
+
+**Phase 2: Online Callbacks (The Advanced Feature)**
+
+For ANCE and dynamic denoising — requires deep integration:
+
+.. code-block:: text
+
+   ┌─────────────────────────────────────────────────────────────────┐
+   │                   ONLINE MINING (Phase 2)                       │
+   ├─────────────────────────────────────────────────────────────────┤
+   │                                                                 │
+   │  NOT a standalone miner — INTEGRATIONS for:                    │
+   │                                                                 │
+   │  • HuggingFace Trainer: HardMiningCallback                     │
+   │  • PyTorch Lightning: HardMiningCallback                       │
+   │  • Accelerate: HardMiningPlugin                                │
+   │                                                                 │
+   │  Meets users where they are — hooks into their loop            │
+   │                                                                 │
+   │  ⚠️ Requires deep framework knowledge                          │
+   │  ⚠️ DDP complexity cannot be fully hidden                      │
+   │                                                                 │
+   └─────────────────────────────────────────────────────────────────┘
+
+**The Correct Mental Model:**
+
+.. code-block:: text
+
+   ❌ WRONG (what rerankers does):
+      output = lib(input)
+   
+   ✅ RIGHT (what hardminers must do):
+      dataset = lib.preprocess(dataset)     # Phase 1: Offline
+      trainer = lib.attach(trainer)         # Phase 2: Online
+
+Recommended Recipe: Where to Start
+----------------------------------
+
+.. tip::
+
+   **Default Recommendation for Practitioners**
+   
+   If you are starting today, **don't implement ANCE**. Start with:
+   
+   **BM25 Static Mining + Cross-Encoder Denoising**
+   
+   This offers ~80% of the gains of dynamic mining with ~10% of the engineering complexity.
+
+**Why This Recipe?**
+
+1. **BM25 mining** is fast, well-understood, and catches lexically similar negatives
+2. **Cross-encoder denoising** filters false negatives (the main source of training damage)
+3. **One-time preprocessing** — no training loop modifications needed
+4. **Works with any trainer** — outputs standard triplets
+
+Phase 1 API: Offline Mining (The MVP)
+-------------------------------------
+
+This is what you should build first — the realistic, high-value MVP:
+
+Dataset In → Dataset Out
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. note::
+
+   **Philosophy: Dataset In, Dataset Out**
+   
+   * Input:  Dataset with ``query`` + ``positive`` columns (JSONL, Parquet, HF Dataset)
+   * Corpus: Text collection (list, dict, datasets.Dataset, Pyserini index, FAISS index, Vector DB)
+   * Output: Same dataset with a new ``hard_negatives`` column
+   * ✅ No training loop coupling
+   * ✅ Works with SentenceTransformers, ColBERT, PyTorch Lightning, Tevatron, etc.
+
+Hello World: Static BM25
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+   from hardminers import OfflineMiner
+   
+   # 1. Initialize the miner (uses rank_bm25 under the hood for zero deps)
+   miner = OfflineMiner(
+       strategy="bm25",
+       corpus=corpus_dataset,     # dict[id -> text], HF Dataset, or list[str]
+       num_negatives=10
+   )
+   
+   # 2. Run once (offline). Adds "hard_negatives" column.
+   training_data = miner.mine(
+       dataset=query_dataset,
+       query_column="query",
+       positive_column="positive",
+       batch_size=32
+   )
+   
+   print(training_data[0]["hard_negatives"][0])
+   # "Data mining is a process of..."  <-- Hard negative (lexical overlap)
+
+Power User: BM25 + Cross-Encoder Denoising
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+   from hardminers import OfflineMiner
+   from hardminers.filters import CrossEncoderDenoiser
+   
+   denoiser = CrossEncoderDenoiser(
+       model_name="cross-encoder/ms-marco-MiniLM-L-6-v2",
+       threshold=0.1,        # If CE score > 0.1 → false negative → discard
+       keep_top_k=50         # Only rescore top 50 BM25 hits
+   )
+   
+   miner = OfflineMiner(
+       strategy="bm25",
+       corpus=corpus_dataset,
+       filters=[denoiser]
+   )
+   
+   clean_data = miner.mine(query_dataset)
+
+This abstracts away the 200+ lines of custom script normally required for RocketQA/ColBERTv2 denoising.
+
+Researcher Mode: SimANS / Ambiguous Zone
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+   from hardminers import OfflineMiner
+   from hardminers.samplers import AmbiguousZoneSampler
+   
+   sampler = AmbiguousZoneSampler(
+       start_rank=50,
+       end_rank=200,
+       strategy="uniform"
+   )
+   
+   miner = OfflineMiner(
+       strategy="dense",                     # Dense retriever (SentenceTransformers)
+       model_name="sentence-transformers/all-MiniLM-L6-v2",
+       sampler=sampler
+   )
+   
+   dataset = miner.mine(query_dataset)
+
+Backend Abstraction: Handling Scale
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+   # Option A: In-memory (small corpora)
+   miner = OfflineMiner(strategy="bm25", corpus=list_of_docs)
+   
+   # Option B: Pyserini (prebuilt MS MARCO index on disk)
+   miner = OfflineMiner(
+       strategy="bm25",
+       backend="pyserini",
+       index_path="indexes/msmarco-passage"
+   )
+   
+   # Option C: FAISS (pre-computed dense vectors)
+   miner = OfflineMiner(
+       strategy="dense",
+       backend="faiss",
+       index_path="indexes/my_faiss.index"
+   )
+
+Outputs & Interoperability
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* ``output_format="arrow"`` → HuggingFace Dataset
+* ``output_format="jsonl"`` → Tevatron / PyTorch Lightning
+* ``output_format="parquet"`` → Spark / data warehouses
+
+Users can inspect negatives before training (debuggability) and train with any framework (interoperability).
+
+MVP Checklist
+^^^^^^^^^^^^^
+
+1. ``OfflineMiner`` core class (Dataset In → Dataset Out)
+2. ``BM25`` retriever (rank_bm25; optional Pyserini backend)
+3. ``CrossEncoderDenoiser`` filter (RocketQA/ColBERTv2 killer feature)
+4. Outputs in HF Dataset / JSONL / Parquet formats
+
+Phase 2 API: Online Callbacks (Advanced)
+----------------------------------------
+
+For users who need dynamic mining — framework-specific integrations:
+
+.. code-block:: python
+
+   # HuggingFace Trainer Integration
+   from hardminers.integrations.hf import ANCECallback, DenoisingCallback
+   from transformers import Trainer
+   
+   # ANCE-style dynamic refresh
+   trainer = Trainer(
+       model=model,
+       args=training_args,
+       train_dataset=dataset,
+       callbacks=[
+           ANCECallback(
+               refresh_every=5000,      # Refresh index every 5K steps
+               top_k=100,
+               index_type="faiss_gpu"   # Use GPU index for speed
+           )
+       ]
+   )
+   
+   # PyTorch Lightning Integration
+   from hardminers.integrations.lightning import ANCECallback
+   
+   trainer = pl.Trainer(
+       callbacks=[ANCECallback(refresh_every=5000)]
+   )
+
+**Safety Warnings (Built-in):**
+
+.. code-block:: python
+
+   # The library should warn users about compute costs
+   miner = OfflineMiner(strategy="ance_offline", corpus_size=10_000_000)
+   # WARNING: ANCE on 10M documents without GPU index will take ~4 days.
+   # Recommendations:
+   #   1. Use 'faiss_gpu' index (requires GPU with 16GB+ VRAM)
+   #   2. Use 'approximate' mode (faster, slightly lower quality)
+   #   3. Use 'denoised' strategy instead (similar quality, 10x faster)
+   # Continue anyway? [y/N]
+
+Vector Database Integration
+---------------------------
+
+Modern deployments often store embeddings in vector databases. The library should 
+interface with these systems:
+
+.. code-block:: python
+
+   # Mine from existing vector DB (killer feature over academic repos)
+   miner = OfflineMiner(strategy="margin", range_min=10, range_max=200)
+   
+   # From Qdrant
+   dataset_with_negatives = miner.mine(
+       dataset,
+       corpus_source="qdrant://localhost:6333/my_collection"
+   )
+   
+   # From Milvus
+   dataset_with_negatives = miner.mine(
+       dataset,
+       corpus_source="milvus://localhost:19530/embeddings"
+   )
+   
+   # From local FAISS index (skip re-encoding)
+   dataset_with_negatives = miner.mine(
+       dataset,
+       corpus_source="faiss://./my_index.faiss",
+       corpus_texts="./corpus.jsonl"  # For text lookup
+   )
+
+**Why This Matters**: If users already have data in Qdrant/Milvus/Weaviate, they shouldn't 
+need to export to flat files or rebuild local FAISS indices.
+
+Legacy API Design (Reference)
+-----------------------------
+
+The original simplified API design is preserved here for reference, but the **Phase 1/2 
+architecture above is the recommended approach**.
 
 .. code-block:: python
 
@@ -1078,92 +1662,140 @@ API Design
 Priority Strategies for Implementation
 --------------------------------------
 
+Prioritized by **impact/effort ratio**, not just theoretical elegance:
+
 .. list-table::
    :header-rows: 1
-   :widths: 10 25 25 20 20
+   :widths: 8 22 20 15 15 20
 
    * - Priority
      - Strategy
      - Paper
      - Complexity
-     - Theory-Based?
-   * - 1
-     - In-Batch Negatives
-     - Baseline
-     - Easy
-     - ✅ Yes
+     - Value
+     - Notes
+   * - **1**
+     - **Cross-Encoder Denoising**
+     - RocketQA
+     - Medium
+     - ⭐⭐⭐
+     - **Start here!** Highest impact, no lib has this
    * - 2
      - Static BM25
      - DPR
      - Easy
-     - ✅ Yes
+     - ⭐⭐
+     - Foundation for denoising
    * - 3
-     - Margin-Based
+     - Margin-Based Filtering
      - Triplet Loss
      - Easy
-     - ✅ Yes
+     - ⭐⭐
+     - Simple, effective
    * - 4
-     - Cross-Encoder Denoising
-     - RocketQA
-     - Medium
-     - ✅ Yes
+     - In-Batch Negatives
+     - Baseline
+     - Easy
+     - ⭐
+     - Already everywhere
    * - 5
-     - Dynamic ANN Refresh
-     - ANCE
+     - Ambiguous Zone (SimANS)
+     - SimANS
      - Medium
-     - ✅ Yes
+     - ⭐⭐
+     - Good alternative to margin
    * - 6
-     - Query-Side Finetuning
+     - Dynamic ANN (ANCE)
+     - ANCE
+     - Hard
+     - ⭐⭐
+     - High complexity, moderate gain
+   * - 7
+     - Query-Side (ADORE)
      - ADORE
      - Hard
-     - ✅ Yes
-   * - 7
+     - ⭐⭐
+     - Efficient dynamic mining
+   * - 8
      - Importance Sampling
      - Sampling Matters
      - Medium
-     - ✅ Yes
-   * - 8
-     - Ambiguous Zone Sampling
-     - SimANS
-     - Medium
-     - ✅ Yes (probabilistic)
+     - ⭐
+     - Theoretical, less practical
    * - 9
-     - LLM-Synthetic Generation
+     - Cross-Batch
+     - RocketQA
+     - Hard
+     - ⭐
+     - Requires distributed setup
+   * - 10
+     - LLM-Synthetic
      - SyNeg
      - Medium
-     - 🔧 Empirical
-   * - 10
-     - False Negative Filtering
-     - Various
-     - Easy
-     - ✅ Yes
+     - ⭐
+     - 🧪 Experimental, high cost
+
+**Strategic Insight**: Cross-Encoder Denoising is the **highest-value contribution** because:
+
+1. **No library has it** as a standardized function
+2. **Immediate value** — delivers ColBERTv2/RocketQA gains
+3. **No training loop coupling** — works as standalone preprocessing
+4. **Low engineering complexity** — just BM25 → CE scoring → filtering
 
 Integration with Training Libraries
 -----------------------------------
 
+**Example 1: Static Mining + Sentence-Transformers**
+
 .. code-block:: python
 
-   from hardminers import HardMiner, ContrastiveTrainer
+   from hardminers import HardMiner
+   from sentence_transformers import SentenceTransformer, InputExample
+   from sentence_transformers.losses import MultipleNegativesRankingLoss
+   from torch.utils.data import DataLoader
    
-   # Mine negatives
-   miner = HardMiner("denoised", denoiser="cross-encoder/ms-marco-MiniLM-L-6-v2")
-   dataset_with_negatives = miner.mine(queries, corpus, positives)
+   # Step 1: Mine hard negatives (one-time preprocessing)
+   miner = HardMiner("denoised", 
+                     retriever="bm25",
+                     denoiser="cross-encoder/ms-marco-MiniLM-L-6-v2",
+                     threshold=0.7)
+   triplets = miner.mine(queries, corpus, positives)  # Returns (query, pos, neg) triplets
    
-   # Train with sentence-transformers
-   from sentence_transformers import SentenceTransformer, losses
+   # Step 2: Convert to training format
+   train_examples = [
+       InputExample(texts=[q, p, n]) for q, p, n in triplets
+   ]
+   train_dataloader = DataLoader(train_examples, batch_size=32, shuffle=True)
    
+   # Step 3: Train with standard sentence-transformers
    model = SentenceTransformer("BAAI/bge-base-en-v1.5")
-   train_loss = losses.MultipleNegativesRankingLoss(model)
+   train_loss = MultipleNegativesRankingLoss(model)
+   model.fit(train_objectives=[(train_dataloader, train_loss)], epochs=3)
+
+**Example 2: Dynamic Mining (ANCE-style) with ColBERT**
+
+.. code-block:: python
+
+   from hardminers import ANCEMiner
+   from pylate import ColBERT, Trainer
    
-   # Or use built-in trainer
-   trainer = ContrastiveTrainer(
-       model="BAAI/bge-base-en-v1.5",
-       miner=miner,
-       loss="infonce",
-       dynamic_mining=True,  # Re-mine every N steps
-       refresh_interval=1000
+   # Initialize model and dynamic miner
+   model = ColBERT("bert-base-uncased")
+   miner = ANCEMiner(
+       model=model,
+       refresh_interval=5000,   # Refresh ANN index every 5K steps
+       top_k=200,               # Mine from top-200 candidates
+       filter_margin=0.05       # Remove candidates within 5% of positive score
    )
-   trainer.train(dataset)
+   
+   # Training loop with automatic negative refresh
+   trainer = Trainer(
+       model=model,
+       negative_miner=miner,    # Miner integrated into training loop
+       train_dataset=dataset,
+       per_device_train_batch_size=32
+   )
+   trainer.train()
 
 Detailed Library Implementation Analysis
 ========================================
@@ -1335,13 +1967,46 @@ Summary
 
 .. important::
 
-   **Key Takeaways:**
+   **🎯 Key Takeaways**
+   
+   **The Ecosystem Gap (Validated):**
    
    1. **ColBERTv2 uses**: In-batch + static BM25 + cross-encoder distillation/denoising
    2. **ColBERTv2 does NOT use**: Dynamic refresh (ANCE), curriculum (SimANS), synthetic (SyNeg)
-   3. **Gap in ecosystem**: No unified library for hard negative mining strategies
+   3. **Gap confirmed**: No unified library for hard negative mining strategies
    4. **Theoretically-grounded methods**: ANCE, ADORE, RocketQA, margin-based, importance sampling
-   5. **Library opportunity**: Unified API similar to ``rerankers`` for mining strategies
+
+.. warning::
+
+   **🚨 Critical Architectural Lesson**
+   
+   **The ``rerankers`` analogy is misleading!**
+   
+   * ``rerankers`` = inference library (stateless, outside the loop)
+   * ``hardminers`` = training utility (stateful, coupled to the loop)
+   
+   **You cannot build a simple ``miner.mine()`` wrapper like ``rerankers``.**
+   
+   Instead, build **two distinct tools**:
+   
+   1. **Offline Miners** (Phase 1 MVP): Preprocessing, decoupled, works with any trainer
+   2. **Online Callbacks** (Phase 2): Framework-specific integrations for dynamic mining
+
+.. tip::
+
+   **🏆 The Winning Strategy**
+   
+   **Start with Phase 1: Offline Mining + Cross-Encoder Denoising**
+   
+   This delivers:
+   
+   * ~80% of dynamic mining gains
+   * ~10% of the engineering complexity
+   * No training loop coupling
+   * No DDP nightmares
+   * Immediate, shippable value
+   
+   **This is the "low-hanging fruit" that no library currently provides.**
 
 Ecosystem Gap Validation
 ------------------------
@@ -1390,24 +2055,47 @@ Gap Analysis: Visual Summary
    │                                    │  ❌ Topic-aware (TAS-Balanced)       │
    └─────────────────────────────────────────────────────────────────────────┘
 
-**The Solution**: A library like ``rerankers`` but for hard negative mining:
+**The Correct Solution** (NOT a simple ``rerankers`` clone):
+
+.. code-block:: text
+
+   ┌─────────────────────────────────────────────────────────────────────────┐
+   │                    HARDMINERS ARCHITECTURE                               │
+   ├─────────────────────────────────────────────────────────────────────────┤
+   │                                                                          │
+   │  PHASE 1: OFFLINE MINERS (MVP)    │  PHASE 2: ONLINE CALLBACKS          │
+   │  ─────────────────────────────────┼───────────────────────────────────  │
+   │  ✅ BM25 Static Mining            │  🔧 HuggingFace Trainer Callback    │
+   │  ✅ Cross-Encoder Denoising       │  🔧 PyTorch Lightning Callback      │
+   │  ✅ SimANS (Ambiguous Zone)       │  🔧 Accelerate Plugin               │
+   │  ✅ Margin-Based Filtering        │  🔧 ANCE Dynamic Refresh            │
+   │  ✅ LLM-Synthetic (SyNeg)         │  🔧 Cross-Batch (DDP)               │
+   │                                    │                                     │
+   │  → Decoupled from training        │  → Coupled to training loop         │
+   │  → Works with ANY trainer         │  → Framework-specific               │
+   │  → "pip install and run"          │  → Requires deep integration        │
+   │  → HIGH VALUE, LOW COMPLEXITY     │  → HIGH VALUE, HIGH COMPLEXITY      │
+   └─────────────────────────────────────────────────────────────────────────┘
 
 .. code-block:: python
 
-   # Hypothetical unified API
-   from hardminers import HardMiner
+   # Phase 1 API (The MVP - Start Here!)
+   from hardminers import OfflineMiner
    
-   # Same interface, different strategies
-   miner = HardMiner("ance")           # Dynamic refresh
-   miner = HardMiner("denoised")       # Cross-encoder filtering
-   miner = HardMiner("margin")         # Margin-based selection
-   miner = HardMiner("simans")         # Ambiguous zone sampling
-   miner = HardMiner("tas")            # Topic-aware sampling
-   miner = HardMiner("importance")     # Distance-weighted sampling
+   miner = OfflineMiner("denoised")    # BM25 + Cross-Encoder filtering
+   dataset = miner.mine(dataset, corpus=corpus)
+   # → Ready for training with ANY framework
    
-   hard_negatives = miner.mine(queries, corpus, positives)
+   # Phase 2 API (Advanced - Later)
+   from hardminers.integrations.hf import ANCECallback
+   trainer = Trainer(model, callbacks=[ANCECallback(refresh_every=5000)])
 
-**CONCLUSION**: Strong justification for unified hard mining library.
+**CONCLUSION**: 
+
+* ✅ **Gap validated**: No unified library exists for hard negative mining
+* ⚠️ **Architectural lesson**: Cannot be a simple ``rerankers`` clone
+* 🎯 **Winning strategy**: Phase 1 (Offline Denoising) delivers 80% value with 10% complexity
+* 🚀 **Start here**: Cross-Encoder Denoising is the highest-value, lowest-complexity contribution
 
 References
 ==========
@@ -1454,6 +2142,16 @@ References
 
 11. Karpukhin, V., et al. (2020). "Dense Passage Retrieval for Open-Domain Question 
     Answering (DPR)." *EMNLP 2020*. `arXiv:2004.04906 <https://arxiv.org/abs/2004.04906>`_
+
+**Additional Relevant Work:**
+
+12. Tabassum, A., et al. (2022). "Hard Negative Sampling Strategies for Contrastive 
+    Representation Learning (UnReMix)." *arXiv preprint*. 
+    `arXiv:2206.01197 <https://arxiv.org/abs/2206.01197>`_
+
+13. Hofstätter, S., et al. (2021). "Improving Efficient Neural Ranking Models with 
+    Cross-Architecture Knowledge Distillation." *SIGIR 2021*. 
+    `arXiv:2010.02666 <https://arxiv.org/abs/2010.02666>`_
 
 **Libraries:**
 
