@@ -15,26 +15,46 @@ informing the design of a **unified hard negative mining library** — analogous
 Motivation: The Gap in the Ecosystem
 ====================================
 
-Current State of Libraries
---------------------------
+The Problem Statement
+---------------------
 
-.. code-block:: text
+Hard negative mining is a critical component of training dense retrieval models, yet:
 
-   Inference Libraries              │  Training Libraries
-   ─────────────────────────────────┼─────────────────────────────────
-   ✅ rerankers (unified API)       │  ❌ No unified hard mining lib
-   ✅ RAGatouille (ColBERT)         │  ✅ Contrastors (basic mining)
-   ✅ sentence-transformers         │  ✅ FlagEmbedding (basic mining)
-   ✅ PyLate (late interaction)     │  ❌ Advanced mining scattered
-   ─────────────────────────────────┴─────────────────────────────────
+1. **No unified library exists** for hard negative mining (unlike inference where ``rerankers`` unifies 20+ models)
+2. **Advanced strategies are scattered** across paper repositories with incompatible interfaces
+3. **Production implementations are limited** to basic methods (in-batch, static BM25)
 
-**The Problem**: Hard negative mining code is scattered across paper repositories with no 
-unified interface. Researchers must re-implement strategies for each project.
+This document analyzes the ecosystem to validate the need for a unified mining library.
+
+Formal Definition: What is a Hard Negative?
+-------------------------------------------
+
+Before analyzing implementations, we establish precise definitions:
+
+**Definition (Negative Sample)**: Given a query \(q\) and its relevant document \(d^+\), a negative 
+sample \(d^-\) is any document where \(\text{rel}(q, d^-) = 0\).
+
+**Definition (Hard Negative)**: A hard negative \(d^-_{\text{hard}}\) satisfies:
+
+.. math::
+
+   \text{sim}(q, d^-_{\text{hard}}) > \tau \quad \text{where} \quad \text{rel}(q, d^-_{\text{hard}}) = 0
+
+where \(\tau\) is a similarity threshold (typically top-k retrieval rank or score cutoff).
+
+**Definition (False Negative)**: A sample labeled as negative but actually relevant:
+
+.. math::
+
+   d^-_{\text{false}}: \quad \text{label}(q, d^-_{\text{false}}) = 0 \quad \text{but} \quad \text{rel}(q, d^-_{\text{false}}) = 1
+
+**The Goldilocks Principle**: Optimal negatives are "just right" — hard enough to provide 
+learning signal, but not so hard they're likely false negatives.
 
 Ecosystem-Wide Hard Negative Mining Support
 -------------------------------------------
 
-The following table comprehensively maps **50+ libraries** against **10 hard negative mining strategies**. 
+The following table maps **19 training-relevant libraries** against **10 hard negative mining strategies**. 
 This analysis reveals the gap that a unified mining library could fill.
 
 **Legend:**
@@ -312,50 +332,6 @@ This analysis reveals the gap that a unified mining library could fill.
 **Key Finding**: Advanced mining strategies (ANCE, SimANS, ADORE, importance sampling) 
 exist only in paper repositories with no production-ready implementations.
 
-Gap Analysis: Why a Unified Library is Needed
----------------------------------------------
-
-.. code-block:: text
-
-   ┌─────────────────────────────────────────────────────────────────────────┐
-   │                    HARD NEGATIVE MINING ECOSYSTEM                        │
-   ├─────────────────────────────────────────────────────────────────────────┤
-   │                                                                          │
-   │  WELL-SERVED (Inference)          │  UNDERSERVED (Training)             │
-   │  ─────────────────────────────────┼───────────────────────────────────  │
-   │  ✅ Rerankers: 20+ models         │  ❌ No unified mining library        │
-   │  ✅ LlamaIndex: 160+ connectors   │  ❌ Advanced methods scattered       │
-   │  ✅ LangChain: 700+ integrations  │  ❌ Paper repos hard to use          │
-   │  ✅ Vector DBs: 8+ options        │  ❌ No common interface              │
-   │                                    │                                     │
-   │  BASIC MINING AVAILABLE           │  ADVANCED MINING MISSING            │
-   │  ─────────────────────────────────┼───────────────────────────────────  │
-   │  ✅ In-batch (everywhere)         │  ❌ Dynamic refresh (ANCE)           │
-   │  ✅ Static BM25 (most libs)       │  ❌ Query-side (ADORE)               │
-   │  🔧 Margin (Contrastors only)     │  ❌ Ambiguous zone (SimANS)          │
-   │  🔧 Denoising (ColBERT only)      │  ❌ LLM-synthetic (SyNeg)            │
-   │                                    │  ❌ Importance sampling              │
-   │                                    │  ❌ Curriculum learning              │
-   └─────────────────────────────────────────────────────────────────────────┘
-
-**Conclusion**: The ecosystem has mature inference libraries but lacks a unified training 
-library for hard negative mining. This is the gap that ``hardminers`` would fill.
-
-**The Solution**: A library like ``rerankers`` but for hard negative mining:
-
-.. code-block:: python
-
-   # Hypothetical unified API
-   from hardminers import HardMiner
-   
-   # Same interface, different strategies
-   miner = HardMiner("ance")           # Dynamic refresh
-   miner = HardMiner("denoised")       # Cross-encoder filtering
-   miner = HardMiner("margin")         # Margin-based selection
-   miner = HardMiner("simans")         # Ambiguous zone sampling
-   
-   hard_negatives = miner.mine(queries, corpus, positives)
-
 How ColBERTv2 Uses Hard Negative Mining
 =======================================
 
@@ -495,12 +471,19 @@ negative mining script that wraps sentence-transformers functionality.
        anchor_column_name="query",
        positive_column_name="pos",
        num_negatives=20,               # Sample 20 negatives per query
-       margin=0.95,                    # Only keep negatives with score < pos_score * margin
+       margin=0.05,                    # Negative score must be < positive_score - margin
        range_min=10,                   # Skip top-10 (too similar, likely false negatives)
        range_max=50,                   # Only consider ranks 10-50
        sampling_strategy="top",        # "top" or "random"
        use_faiss=True,                 # FAISS for large-scale
    )
+
+.. note::
+
+   The ``margin`` parameter in Sentence-Transformers is **additive**: a negative is kept 
+   only if ``score(q, neg) < score(q, pos) - margin``. Contrastors uses multiplicative 
+   margins (e.g., 0.95 means ``score(q, neg) < 0.95 * score(q, pos)``). Both achieve 
+   similar filtering but with different parameterizations.
 
 **Sampling Logic:**
 
@@ -640,8 +623,36 @@ them by interpolation.
 Theoretically-Grounded Mining Methods
 =====================================
 
-These methods are **grounded in theory** and don't rely on curriculum learning or 
-synthetic generation.
+These methods are **grounded in mathematical theory** with formal guarantees or principled 
+derivations. We present them with their theoretical foundations.
+
+Why Hard Negatives Matter: The InfoNCE Perspective
+--------------------------------------------------
+
+The theoretical foundation for hard negative mining comes from the **InfoNCE loss** 
+(Oord et al., 2018), which most dense retrieval models optimize:
+
+.. math::
+
+   \mathcal{L}_{\text{InfoNCE}} = -\log \frac{\exp(\text{sim}(q, d^+) / \tau)}{\exp(\text{sim}(q, d^+) / \tau) + \sum_{i=1}^{K} \exp(\text{sim}(q, d^-_i) / \tau)}
+
+**Gradient Analysis** (key insight for understanding mining strategies):
+
+The gradient with respect to a negative sample \(d^-_i\) is:
+
+.. math::
+
+   \frac{\partial \mathcal{L}}{\partial \text{sim}(q, d^-_i)} = \frac{\exp(\text{sim}(q, d^-_i) / \tau)}{\sum_j \exp(\text{sim}(q, d^-_j) / \tau)} = p(d^-_i | q)
+
+**Key Insight**: The gradient is proportional to the softmax probability of the negative. 
+This means:
+
+* **Easy negatives** (low similarity): Small gradient → minimal learning signal
+* **Hard negatives** (high similarity): Large gradient → strong learning signal
+* **False negatives** (actually relevant): Large gradient in WRONG direction → damages model
+
+This explains why hard negative mining is critical: easy negatives waste compute, while 
+hard negatives provide the signal needed for learning fine-grained distinctions.
 
 ANCE: Dynamic ANN Refresh
 -------------------------
@@ -649,17 +660,21 @@ ANCE: Dynamic ANN Refresh
 **Paper**: `Approximate Nearest Neighbor Negative Contrastive Learning 
 <https://arxiv.org/abs/2007.00808>`_ (ICLR 2021)
 
-**Theoretical Grounding**: The paper proves that **static negatives cause gradient vanishing**:
+**Theoretical Grounding**: ANCE addresses the **staleness problem** of static negatives:
 
 .. code-block:: text
 
-   Gradient magnitude ∝ (1 - similarity(q, neg))
+   Training Dynamics:
    
-   If neg is "easy" (low similarity): gradient ≈ 1 (good)
-   If neg is "hard" (high similarity): gradient ≈ 0 (vanishing!)
+   Step 0:    Model M₀, Negatives N₀ (hard for M₀)
+   Step 1000: Model M₁ has improved → N₀ now "easy" for M₁
+   Step 2000: Model M₂ even better → N₀ provides almost no gradient
    
-   BUT: As model improves, previously "hard" negatives become "easy"
-        → Need to refresh to find NEW hard negatives
+   Problem: Static negatives become uninformative as model improves
+   Solution: Periodically refresh negatives using current model
+
+**Formal Claim** (Theorem 1 in paper): Under certain conditions, ANCE converges to a 
+stationary point of the true contrastive objective, while static negative sampling may not.
 
 **Key Innovation**: Periodically rebuild the ANN index with current model embeddings.
 
@@ -726,6 +741,9 @@ RocketQA: Cross-Batch Negatives + Denoising
    # In-batch negatives: 31 per query
    # Cross-batch negatives: 32*8 - 1 = 255 per query
 
+**Theoretical Justification**: More negatives → better approximation of the full softmax 
+partition function → lower variance gradient estimates.
+
 **Insight 2: Denoised Hard Negatives**
 
 Uses cross-encoder to **filter false negatives**:
@@ -738,7 +756,17 @@ Uses cross-encoder to **filter false negatives**:
        if ce_score > threshold:  # This "negative" is actually relevant!
            remove(neg)  # Don't train on false negatives
 
-**Theoretical Basis**: InfoNCE loss is biased when negatives are actually positives.
+**Theoretical Basis**: False negatives cause the gradient to push apart actually-relevant 
+pairs, directly contradicting the training objective:
+
+.. math::
+
+   \text{If } d^-_{\text{false}} \text{ is relevant: } \frac{\partial \mathcal{L}}{\partial d^-_{\text{false}}} \text{ pushes } d^-_{\text{false}} \text{ away from } q
+
+This corrupts the embedding space by creating "holes" where relevant documents should be close.
+
+**Empirical Finding**: RocketQA found ~30% of top-retrieved "negatives" were actually 
+relevant on MS MARCO, and filtering these improved MRR@10 by 2-3 points.
 
 Margin-Based Mining (Triplet Loss Theory)
 -----------------------------------------
@@ -769,15 +797,28 @@ Importance Sampling
 **Theory**: Proposes **distance-weighted sampling** where probability of selecting a 
 negative is proportional to its similarity:
 
+.. math::
+
+   P(d^-_i) = \frac{\exp(\text{sim}(q, d^-_i) / \tau)}{\sum_{j=1}^{N} \exp(\text{sim}(q, d^-_j) / \tau)}
+
 .. code-block:: python
 
-   # Uniform sampling (bad)
+   # Uniform sampling (uninformative)
    P(neg) = 1/N
    
-   # Distance-weighted sampling (better)
-   P(neg) ∝ exp(similarity(anchor, neg) / temperature)
-   
-   # This naturally samples harder negatives more often
+   # Distance-weighted sampling (informative)
+   similarities = model.score(query, all_negatives)
+   weights = softmax(similarities / temperature)
+   sampled_neg = np.random.choice(all_negatives, p=weights)
+
+**Theoretical Justification**: This sampling distribution matches the gradient weighting 
+in InfoNCE, meaning we sample negatives proportionally to their contribution to the loss.
+
+**Temperature Effect**:
+
+* \(\tau \to 0\): Always sample hardest negative (greedy)
+* \(\tau \to \infty\): Uniform sampling (random)
+* \(\tau \approx 0.1\): Balance between hard and diverse
 
 Alignment and Uniformity
 ------------------------
@@ -797,10 +838,35 @@ Uniformity <https://arxiv.org/abs/2005.10242>`_ (ICML 2020)
    Hard negatives improve UNIFORMITY by pushing apart similar-but-different items
    Easy negatives are already far apart → don't improve uniformity
 
-Curriculum and Synthetic Methods (For Completeness)
-====================================================
+TAS-Balanced: Topic-Aware Sampling
+-----------------------------------
 
-While not purely theoretically-grounded, these methods are widely used:
+**Paper**: `Balanced Topic-Aware Sampling for Effective Dense Retriever Training 
+<https://arxiv.org/abs/2104.06967>`_ (SIGIR 2021)
+
+**Theory**: Cluster queries by topic, then sample negatives that are topically related 
+but not relevant. This ensures negatives are semantically challenging.
+
+.. code-block:: python
+
+   # TAS-Balanced approach
+   # 1. Cluster queries by topic (using query embeddings)
+   clusters = kmeans(query_embeddings, n_clusters=100)
+   
+   # 2. For each query, sample negatives from same topic cluster
+   for query in queries:
+       topic = clusters.predict(query)
+       topic_negatives = get_negatives_from_cluster(topic)
+       # These are topically related but not relevant
+
+**Theoretical Justification**: Topic-aware sampling ensures negatives share semantic 
+features with the query, forcing the model to learn fine-grained distinctions rather 
+than coarse topic classification.
+
+Principled Sampling Methods
+===========================
+
+These methods use principled (though not purely theoretical) approaches to negative selection.
 
 SimANS: Ambiguous Zone Sampling
 -------------------------------
@@ -808,8 +874,18 @@ SimANS: Ambiguous Zone Sampling
 **Paper**: `SimANS: Simple Ambiguous Negatives Sampling 
 <https://arxiv.org/abs/2210.11773>`_ (EMNLP 2022)
 
-**Key Insight**: Sample negatives from the "ambiguous zone" — ranked neither too high 
-(false positive risk) nor too low (too easy).
+**Key Insight**: The optimal negatives lie in an "ambiguous zone" — ranked high enough 
+to be informative, but not so high they're likely false negatives.
+
+**Probabilistic Formulation**:
+
+.. math::
+
+   P(\text{false negative} | \text{rank} = r) \approx \begin{cases}
+   \text{high} & \text{if } r < 50 \\
+   \text{medium} & \text{if } 50 \leq r < 200 \\
+   \text{low} & \text{if } r \geq 200
+   \end{cases}
 
 .. code-block:: python
 
@@ -818,9 +894,15 @@ SimANS: Ambiguous Zone Sampling
        scores = model.score(query, corpus)
        ranked_indices = scores.argsort(descending=True)
        
-       # Sample from ambiguous zone
+       # Sample from ambiguous zone (the "Goldilocks" region)
        ambiguous_candidates = ranked_indices[zone_start:zone_end]
        return random.sample(ambiguous_candidates, num_negatives)
+
+**Why This Works**: By avoiding top-ranked candidates (high false negative risk) and 
+bottom-ranked candidates (too easy), SimANS balances informativeness with label reliability.
+
+Synthetic Generation Methods
+============================
 
 SyNeg: LLM-Synthetic Negatives
 ------------------------------
@@ -829,7 +911,7 @@ SyNeg: LLM-Synthetic Negatives
 <https://arxiv.org/abs/2412.17250>`_ (arXiv 2024)
 
 **Key Innovation**: Uses LLMs to generate text that is semantically similar but 
-factually contradictory.
+factually contradictory — creating "maximally hard" negatives that cannot be false negatives.
 
 .. code-block:: python
 
@@ -844,6 +926,96 @@ factually contradictory.
    3. But contains INCORRECT or CONTRADICTORY information
    """
    synthetic_negative = llm.generate(prompt)
+
+**Advantage over Corpus Mining**: Synthetic negatives are guaranteed to be:
+
+1. **Semantically similar** (same topic, vocabulary)
+2. **Definitely not relevant** (factually contradictory)
+3. **Novel** (not limited to corpus documents)
+
+**Limitation**: Requires LLM inference, which is computationally expensive for large-scale training.
+
+Quantitative Impact of Mining Strategies
+=========================================
+
+To justify the need for a unified library, we summarize published benchmark results 
+showing the impact of different mining strategies.
+
+MS MARCO Passage Ranking (MRR@10)
+---------------------------------
+
+.. list-table:: Impact of Mining Strategies on MS MARCO Dev
+   :header-rows: 1
+   :widths: 35 20 25 20
+
+   * - Method
+     - Mining Strategy
+     - MRR@10
+     - Δ vs Baseline
+   * - DPR (baseline)
+     - Random + BM25
+     - 0.311
+     - —
+   * - DPR + In-Batch
+     - In-batch negatives
+     - 0.326
+     - +1.5%
+   * - ANCE
+     - Dynamic ANN refresh
+     - 0.330
+     - +1.9%
+   * - RocketQA
+     - Cross-batch + denoising
+     - 0.370
+     - +5.9%
+   * - ColBERTv2
+     - BM25 + CE distillation
+     - 0.397
+     - +8.6%
+   * - SimANS
+     - Ambiguous zone
+     - 0.341
+     - +3.0%
+
+*Sources: Original papers. Results may vary with implementation details.*
+
+**Key Observation**: Mining strategy choice can account for **3-9% absolute improvement** 
+in MRR@10, which is often larger than architectural changes.
+
+Computational Trade-offs
+------------------------
+
+.. list-table:: Computational Cost of Mining Strategies
+   :header-rows: 1
+   :widths: 25 20 20 35
+
+   * - Strategy
+     - Pre-training Cost
+     - Training Cost
+     - Notes
+   * - In-Batch
+     - None
+     - O(B²)
+     - B = batch size
+   * - Static BM25
+     - O(N log N)
+     - O(1)
+     - One-time index build
+   * - Dynamic ANN (ANCE)
+     - O(N) per refresh
+     - O(K log N)
+     - Refresh every ~1K steps
+   * - Cross-Encoder Denoising
+     - O(N × K)
+     - O(1)
+     - K candidates per query
+   * - LLM-Synthetic
+     - O(N × L)
+     - O(1)
+     - L = LLM inference cost
+
+**Trade-off**: More sophisticated mining generally improves quality but increases 
+computational cost. A unified library should make this trade-off explicit and configurable.
 
 MUVERA: Multi-Vector Efficiency (Not Mining)
 ============================================
@@ -954,12 +1126,12 @@ Priority Strategies for Implementation
      - Ambiguous Zone Sampling
      - SimANS
      - Medium
-     - ❌ Curriculum
+     - ✅ Yes (probabilistic)
    * - 9
      - LLM-Synthetic Generation
      - SyNeg
      - Medium
-     - ❌ Synthetic
+     - 🔧 Empirical
    * - 10
      - False Negative Filtering
      - Various
@@ -1191,13 +1363,56 @@ Based on the comprehensive analysis above:
    │ Time with unified library                 │ 1 line   │ Trivial    │
    │ Potential users (embedding trainers)      │ 1000s    │ High       │
    └────────────────────────────────────────────────────────────────────┘
+
+Gap Analysis: Visual Summary
+----------------------------
+
+.. code-block:: text
+
+   ┌─────────────────────────────────────────────────────────────────────────┐
+   │                    HARD NEGATIVE MINING ECOSYSTEM                        │
+   ├─────────────────────────────────────────────────────────────────────────┤
+   │                                                                          │
+   │  WELL-SERVED (Inference)          │  UNDERSERVED (Training)             │
+   │  ─────────────────────────────────┼───────────────────────────────────  │
+   │  ✅ Rerankers: 20+ models         │  ❌ No unified mining library        │
+   │  ✅ LlamaIndex: 160+ connectors   │  ❌ Advanced methods scattered       │
+   │  ✅ LangChain: 700+ integrations  │  ❌ Paper repos hard to use          │
+   │  ✅ Vector DBs: 8+ options        │  ❌ No common interface              │
+   │                                    │                                     │
+   │  BASIC MINING AVAILABLE           │  ADVANCED MINING MISSING            │
+   │  ─────────────────────────────────┼───────────────────────────────────  │
+   │  ✅ In-batch (everywhere)         │  ❌ Dynamic refresh (ANCE)           │
+   │  ✅ Static BM25 (most libs)       │  ❌ Query-side (ADORE)               │
+   │  🔧 Margin (Contrastors, ST)      │  ❌ Ambiguous zone (SimANS)          │
+   │  🔧 Denoising (ColBERT only)      │  ❌ LLM-synthetic (SyNeg)            │
+   │                                    │  ❌ Importance sampling              │
+   │                                    │  ❌ Topic-aware (TAS-Balanced)       │
+   └─────────────────────────────────────────────────────────────────────────┘
+
+**The Solution**: A library like ``rerankers`` but for hard negative mining:
+
+.. code-block:: python
+
+   # Hypothetical unified API
+   from hardminers import HardMiner
    
-   CONCLUSION: Strong justification for unified hard mining library
+   # Same interface, different strategies
+   miner = HardMiner("ance")           # Dynamic refresh
+   miner = HardMiner("denoised")       # Cross-encoder filtering
+   miner = HardMiner("margin")         # Margin-based selection
+   miner = HardMiner("simans")         # Ambiguous zone sampling
+   miner = HardMiner("tas")            # Topic-aware sampling
+   miner = HardMiner("importance")     # Distance-weighted sampling
+   
+   hard_negatives = miner.mine(queries, corpus, positives)
+
+**CONCLUSION**: Strong justification for unified hard mining library.
 
 References
 ==========
 
-**Core Papers:**
+**Core Mining Papers:**
 
 1. Santhanam, K., et al. (2022). "ColBERTv2: Effective and Efficient Retrieval via 
    Lightweight Late Interaction." *NAACL 2022*. 
@@ -1207,8 +1422,8 @@ References
    for Dense Text Retrieval." *ICLR 2021*. 
    `arXiv:2007.00808 <https://arxiv.org/abs/2007.00808>`_
 
-3. Zhan, J., et al. (2021). "Optimizing Dense Retrieval Model Training with Hard Negatives." 
-   *SIGIR 2021*. `arXiv:2104.08051 <https://arxiv.org/abs/2104.08051>`_
+3. Zhan, J., et al. (2021). "Optimizing Dense Retrieval Model Training with Hard Negatives 
+   (ADORE)." *SIGIR 2021*. `arXiv:2104.08051 <https://arxiv.org/abs/2104.08051>`_
 
 4. Qu, Y., et al. (2021). "RocketQA: An Optimized Training Approach to Dense Passage 
    Retrieval." *NAACL 2021*. `arXiv:2010.08191 <https://arxiv.org/abs/2010.08191>`_
@@ -1216,21 +1431,39 @@ References
 5. Zhou, K., et al. (2022). "SimANS: Simple Ambiguous Negatives Sampling for Dense Text 
    Retrieval." *EMNLP 2022*. `arXiv:2210.11773 <https://arxiv.org/abs/2210.11773>`_
 
-**Libraries:**
+6. Hofstätter, S., et al. (2021). "Efficiently Teaching an Effective Dense Retriever with 
+   Balanced Topic Aware Sampling (TAS-Balanced)." *SIGIR 2021*. 
+   `arXiv:2104.06967 <https://arxiv.org/abs/2104.06967>`_
 
-* Contrastors: https://github.com/nomic-ai/contrastors
-* Rerankers: https://github.com/AnswerDotAI/rerankers
-* PyLate: https://github.com/lightonai/pylate
-* Hard-Negative-Mixing: https://github.com/davidsvy/hard-negative-mixing
+7. Zhang, Y., et al. (2024). "SyNeg: LLM-Driven Synthetic Hard Negatives for Dense Retrieval." 
+   *arXiv preprint*. `arXiv:2412.17250 <https://arxiv.org/abs/2412.17250>`_
 
 **Theoretical Foundations:**
 
-6. Wang, T., & Isola, P. (2020). "Understanding Contrastive Representation Learning 
+8. Oord, A., et al. (2018). "Representation Learning with Contrastive Predictive Coding 
+   (InfoNCE)." *arXiv preprint*. `arXiv:1807.03748 <https://arxiv.org/abs/1807.03748>`_
+
+9. Wang, T., & Isola, P. (2020). "Understanding Contrastive Representation Learning 
    through Alignment and Uniformity on the Hypersphere." *ICML 2020*. 
    `arXiv:2005.10242 <https://arxiv.org/abs/2005.10242>`_
 
-7. Wu, C., et al. (2017). "Sampling Matters in Deep Embedding Learning." *ICCV 2017*. 
-   `arXiv:1706.07567 <https://arxiv.org/abs/1706.07567>`_
+10. Wu, C., et al. (2017). "Sampling Matters in Deep Embedding Learning." *ICCV 2017*. 
+    `arXiv:1706.07567 <https://arxiv.org/abs/1706.07567>`_
+
+**Baseline Papers:**
+
+11. Karpukhin, V., et al. (2020). "Dense Passage Retrieval for Open-Domain Question 
+    Answering (DPR)." *EMNLP 2020*. `arXiv:2004.04906 <https://arxiv.org/abs/2004.04906>`_
+
+**Libraries:**
+
+* Sentence-Transformers: https://github.com/huggingface/sentence-transformers
+* Contrastors: https://github.com/nomic-ai/contrastors
+* FlagEmbedding: https://github.com/FlagOpen/FlagEmbedding
+* Rerankers: https://github.com/AnswerDotAI/rerankers
+* PyLate: https://github.com/lightonai/pylate
+* Hard-Negative-Mixing: https://github.com/davidsvy/hard-negative-mixing
+* ColBERT: https://github.com/stanford-futuredata/ColBERT
 
 ----
 
