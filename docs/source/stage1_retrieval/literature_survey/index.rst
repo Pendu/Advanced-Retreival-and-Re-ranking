@@ -9,6 +9,8 @@ approaches, and hard negative mining strategies.
    :maxdepth: 2
    :caption: Papers:
 
+   hard_negative_mining_deep_dive
+
 Overview
 --------
 
@@ -20,6 +22,15 @@ to the retrieval literature. Each survey includes:
 * **Empirical results** on standard benchmarks
 * **Practical considerations** for deployment
 * **Connections** to other methods in the retrieval-reranking pipeline
+
+Featured Papers
+---------------
+
+**Hard Negative Mining: A Deep Dive for Building a Unified Mining Library**
+    Comprehensive analysis of hard negative mining strategies including ColBERTv2's 
+    training pipeline, theoretically-grounded methods (ANCE, ADORE, RocketQA), and 
+    existing implementations (Contrastors, PyLate). Includes proposed API design for 
+    a unified mining library analogous to the ``rerankers`` library.
 
 Topics Covered
 --------------
