@@ -88,7 +88,7 @@ GitHub Repository
 
 Visit our repository to contribute:
 
-* Repository: https://github.com/pendu/Advanced-Retreival-and-Re-ranking
+* Repository: https://github.com/pendu/Advanced-Retreival-and-Re-ranking/tree/main/docs/source/
 
 .. note::
 
