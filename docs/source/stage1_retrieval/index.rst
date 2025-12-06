@@ -22,6 +22,10 @@ Introduction: From Lexical to Semantic Matching
 
 Text retrieval aims to find relevant information resources (e.g., documents or passages) in response to a user's natural language query. As a fundamental technique for overcoming information overload, its methodology has evolved through several distinct paradigms, as outlined in foundational surveys of the field.
 
+.. image:: evolution_of_retrieval_methods.png
+   :align: center
+   :alt: Evolution from Sparse Retrieval to PLM-based Dense Retrieval
+
 1. The Era of Sparse Retrieval (Lexical Matching)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 For decades, the field was dominated by the **Vector Space Model** and the "bag-of-words" assumption.
