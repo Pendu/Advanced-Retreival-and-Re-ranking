@@ -17,97 +17,66 @@ candidate documents from large corpora.
    joint_learning
    literature_survey/index
 
-Overview
---------
+Introduction: From Lexical to Semantic Matching
+-----------------------------------------------
 
-Stage 1 retrieval must balance two competing demands:
+Text retrieval aims to find relevant information resources (e.g., documents or passages) in response to a user's natural language query. As a fundamental technique for overcoming information overload, its methodology has evolved through several distinct paradigms, as outlined in foundational surveys of the field.
 
-* **Speed**: Process millions of documents in milliseconds
-* **Recall**: Don't miss relevant documents
+1. The Era of Sparse Retrieval (Lexical Matching)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+For decades, the field was dominated by the **Vector Space Model** and the "bag-of-words" assumption.
+*   **Mechanism**: Queries and documents are represented as sparse vectors where dimensions correspond to explicit terms (words) from the vocabulary.
+*   **Algorithms**: **TF-IDF** and **BM25** became the gold standard for estimating relevance based on lexical overlap (exact word matches).
+*   **Infrastructure**: These methods are efficiently supported by **Inverted Indexes**, allowing for lightning-fast lookup.
 
-The solution is to use architectures that allow pre-computation and efficient similarity search.
+While effective and explainable, these methods struggle with the **vocabulary mismatch** problem—failing to retrieve relevant documents that use synonyms or different phrasing than the query.
 
-Evolution of Stage 1 Methods
------------------------------
+2. Learning to Rank and Early Neural IR
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+To move beyond simple heuristics, researchers adopted **Learning to Rank (LTR)**, using supervised learning with hand-crafted features (e.g., query term proximity, page rank) to train ranking functions.
 
-.. list-table:: Historical Evolution
-   :header-rows: 1
-   :widths: 15 25 30 30
+Subsequently, early **Neural IR** approaches began using shallow neural networks (e.g., word2vec) to learn low-dimensional embeddings. Unlike sparse vectors, these **dense vectors** aim to capture latent semantics, allowing matching based on meaning rather than just surface forms.
 
-   * - Era
-     - Method Type
-     - Key Innovation
-     - Representative Papers
-   * - Pre-2020
-     - Sparse (BM25)
-     - Inverted index, TF-IDF
-     - Traditional IR
-   * - 2020
-     - Dense Baselines
-     - Dual-encoder with BERT
-     - DPR, RepBERT
-   * - 2021
-     - Hard Negatives
-     - Dynamic mining, denoising
-     - ANCE, RocketQA, ADORE
-   * - 2021-2022
-     - Late Interaction
-     - Token-level representations
-     - ColBERT, ColBERTv2
-   * - 2022-2023
-     - Sampling Strategies
-     - Curriculum, score-based
-     - TAS-Balanced, SimANS
-   * - 2023-2024
-     - LLM Integration
-     - Synthetic negatives, prompting
-     - SyNeg, LLM embeddings
+3. The Rise of PLM-based Dense Retrieval
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The advent of Pretrained Language Models (PLMs) like **BERT** marked a revolutionary paradigm shift.
+*   **Deep Understanding**: PLMs, pretrained on massive text corpora, encode rich semantic knowledge and context sensitivity.
+*   **The "Pretrain-then-Finetune" Paradigm**: Models are first pretrained on general text, then fine-tuned on retrieval datasets (like **MS MARCO** or **Natural Questions**).
+*   **Semantic Matching**: Relevance is measured by the similarity (e.g., dot product or cosine) between the dense vector representations of the query and document.
 
-Key Dimensions
---------------
+This shift enables systems to answer complex queries (e.g., *"average salary for dental hygienist in nebraska"*) where the answer depends on understanding intent and semantic relationships, not just keyword matching. This survey and documentation focus on this modern era of **PLM-based Dense Retrieval**.
 
-When evaluating Stage 1 methods, consider:
+Core Aspects of Modern Retrieval
+--------------------------------
 
-**Architecture**
+We organize the study of Stage 1 retrieval into four major aspects:
 
-* **Dual-Encoder**: Independent encoding (fastest)
-* **Late Interaction**: Token-level matching (more accurate)
-* **Hybrid**: Combines sparse and dense
+**1. Architecture**
+How to design the neural networks that encode text.
+*   **Dual-Encoders**: Independent encoding of query and document into single vectors (fastest, standard for dense retrieval).
+*   **Late Interaction**: Preserving token-level embeddings for richer, fine-grained interaction (e.g., **ColBERT**).
+*   **Hybrid**: Architectures that explicitly combine sparse (lexical) and dense (semantic) signals.
 
-**Training Strategy**
+**2. Training Strategies**
+How to optimize the retriever effectively.
+*   **Hard Negative Mining**: The critical process of identifying challenging negatives to teach the model fine-grained distinctions (see :doc:`hard_mining`).
+*   **Knowledge Distillation**: Learning from more powerful cross-encoder teachers.
+*   **Pre-training**: Tailoring the underlying PLM specifically for retrieval tasks before fine-tuning.
 
-* **Negative Mining**: How to find informative negatives?
-* **Knowledge Distillation**: Learn from cross-encoder teachers
-* **Curriculum Learning**: Progressive difficulty
+**3. Indexing and Efficiency**
+How to search millions of dense vectors in milliseconds.
+*   **ANN Search**: Approximate Nearest Neighbor algorithms (e.g., HNSW, FAISS) used to query the dense vector space.
+*   **Learned Indexes**: Optimizing the index structure end-to-end with the model.
 
-**Index Structure**
-
-* **Dense Vector**: Single vector per document
-* **Multi-Vector**: Multiple vectors (e.g., ColBERT)
-* **Learned Index**: End-to-end optimized structures
+**4. Integration**
+Building the complete retrieval pipeline, including combining multiple retrievers and optimizing the retrieval depth.
 
 Quick Navigation
 ----------------
 
-* :doc:`sparse` - BM25 and traditional IR methods
-* :doc:`dense_baselines` - DPR, RepBERT (foundational papers)
-* :doc:`hard_mining` - **Core focus**: Advanced negative mining strategies
-* :doc:`late_interaction` - ColBERT and token-level methods
-* :doc:`hybrid` - Combining sparse and dense
-* :doc:`pretraining` - Pre-training strategies for dense retrievers
-* :doc:`joint_learning` - Jointly optimizing retrieval and indexing
-
-The Central Challenge: Hard Negative Mining
---------------------------------------------
-
-The quality of Stage 1 retrievers depends critically on the negative examples used during 
-training. This is explored in depth in :doc:`hard_mining`, which covers:
-
-* The hard negative problem
-* Evolution from static to dynamic mining
-* Denoising strategies
-* Curriculum learning
-* LLM-based generation
-
-This is the **primary bottleneck** in dense retrieval research today.
-
+* :doc:`sparse` - The foundation: BM25 and Inverted Indexes.
+* :doc:`dense_baselines` - The shift to DPR and BERT-based retrieval.
+* :doc:`hard_mining` - **Deep Dive**: The most critical training component for dense retrievers.
+* :doc:`late_interaction` - Architectures like ColBERT that trade some speed for higher precision.
+* :doc:`hybrid` - Best of both worlds: Combining BM25 and Dense Retrieval.
+* :doc:`pretraining` - Methods to pretrain models specifically for retrieval (e.g., RetroMAE).
