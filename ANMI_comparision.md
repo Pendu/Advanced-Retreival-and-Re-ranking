@@ -273,11 +273,11 @@ Runtime cost = same as any dense retriever / reranker.
 ## 6.2 Cost Comparison Chart
 
 ```mermaid
-xychart-beta
-    title "ANMI 2.0 Implementation Costs (One-Time, USD)"
-    x-axis [Reranker Only, First-Stage Retriever, Unified System]
-    y-axis "Cost in USD" 0 --> 50000
-    bar [3500, 15000, 40000]
+pie showData
+    title "ANMI 2.0 Implementation Costs - Relative Scale"
+    "Reranker Only ~$3.5K" : 35
+    "First-Stage ~$15K" : 150
+    "Unified System ~$40K" : 400
 ```
 
 ## 6.3 Typical cost estimates
@@ -299,19 +299,22 @@ These assume use of cheap LLMs (GPT-4o-mini, Haiku, etc.).
 ## 6.4 Cost vs Quality Tradeoff
 
 ```mermaid
-quadrantChart
-    title Cost vs Quality Impact
-    x-axis Low Cost --> High Cost
-    y-axis Low Quality Gain --> High Quality Gain
-    quadrant-1 Premium Solutions
-    quadrant-2 Sweet Spot
-    quadrant-3 Baseline
-    quadrant-4 Avoid
+flowchart TB
+    subgraph "HIGH QUALITY GAIN"
+        direction LR
+        UNI[Unified System<br/>High Cost, Highest Quality]
+        FS[First-Stage Retriever<br/>Medium Cost, High Quality]
+        RR[Reranker Only<br/>Low Cost, Good Quality]
+    end
     
-    Reranker Only: [0.25, 0.7]
-    First-Stage: [0.55, 0.85]
-    Unified: [0.85, 0.95]
-    Partial ELO: [0.15, 0.5]
+    subgraph "MODERATE QUALITY GAIN"
+        PE[Partial ELO<br/>Lowest Cost, Moderate Quality]
+    end
+    
+    style UNI fill:#fce4ec
+    style FS fill:#fff8e1
+    style RR fill:#e8f5e9
+    style PE fill:#e3f2fd
 ```
 
 ---
@@ -360,8 +363,8 @@ flowchart LR
     
     O4 -.->|Deploy| I2
     
-    COST1[/"$2K-$50K<br/>(One-Time)"/]
-    COST2[/"~$0.001/query<br/>(Standard Compute)"/]
+    COST1[/"$2K-$50K<br/>One-Time"/]
+    COST2[/"~$0.001 per query<br/>Standard Compute"/]
     
     O4 --- COST1
     I5 --- COST2
@@ -393,7 +396,7 @@ flowchart TD
     subgraph "Pairwise Input"
         A[Doc A] 
         B[Doc B]
-        C[LLM Judgment:<br/>P(A > B) = 0.73]
+        C[LLM Judgment:<br/>P of A beats B = 0.73]
     end
     
     A --> C
@@ -595,19 +598,15 @@ Training uses a **3-stage curriculum**:
 ### 11.3.1 Curriculum Progression
 
 ```mermaid
-gantt
-    title Difficulty-Aware Curriculum Schedule
-    dateFormat X
-    axisFormat %s
+flowchart LR
+    subgraph "Training Progression"
+        S1[Stage 1<br/>Easy Pairs<br/>0-33%] --> S2[Stage 2<br/>Medium Pairs<br/>33-66%]
+        S2 --> S3[Stage 3<br/>Hard Pairs<br/>66-100%]
+    end
     
-    section Stage 1
-    Easy Pairs (|s-0.5| > 0.4)     :done, 0, 33
-    
-    section Stage 2
-    Medium Pairs (0.2 < |s-0.5| < 0.4) :active, 33, 66
-    
-    section Stage 3
-    Hard Pairs (|s-0.5| < 0.2)     :66, 100
+    style S1 fill:#c8e6c9
+    style S2 fill:#fff9c4
+    style S3 fill:#ffcdd2
 ```
 
 ### 11.3.2 Difficulty Distribution
@@ -712,7 +711,7 @@ flowchart LR
     end
     
     subgraph "ANN Index"
-        V --> ANN[(Vector<br/>Index)]
+        V --> ANN[Vector<br/>Index]
         ANN --> TOP[Top-K<br/>Candidates]
     end
     
@@ -995,28 +994,37 @@ if ELO(A) > ELO(B), then sim(A) > sim(B)
 ## 14.5 Future Roadmap
 
 ```mermaid
-timeline
-    title ANMI 2.0 Evolution Roadmap
+flowchart LR
+    subgraph P1[Phase 1: Core]
+        P1A[ELO Graph Builder]
+        P1B[Hybrid Loss Training]
+        P1C[Basic Curriculum]
+    end
     
-    section Phase 1
-        Core Implementation : ELO Graph Builder
-                           : Hybrid Loss Training
-                           : Basic Curriculum
+    subgraph P2[Phase 2: Production]
+        P2A[Online ELO Updates]
+        P2B[Click Model Integration]
+        P2C[Auto-scaling Pipeline]
+    end
     
-    section Phase 2
-        Production Features : Online ELO Updates
-                           : Click Model Integration
-                           : Auto-scaling Pipeline
+    subgraph P3[Phase 3: Advanced]
+        P3A[Multi-Hop Retrieval]
+        P3B[Knowledge Distillation]
+        P3C[Cross-Domain Transfer]
+    end
     
-    section Phase 3
-        Advanced Capabilities : Multi-Hop Retrieval
-                             : Knowledge Distillation
-                             : Cross-Domain Transfer
+    subgraph P4[Phase 4: Enterprise]
+        P4A[Federated Learning]
+        P4B[Real-time Adaptation]
+        P4C[Domain Plugins]
+    end
     
-    section Phase 4
-        Enterprise Features : Federated Learning
-                           : Real-time Adaptation
-                           : Domain Plugins
+    P1 --> P2 --> P3 --> P4
+    
+    style P1 fill:#e3f2fd
+    style P2 fill:#fff8e1
+    style P3 fill:#f3e5f5
+    style P4 fill:#e8f5e9
 ```
 
 ---
@@ -1027,7 +1035,7 @@ timeline
 
 ```mermaid
 graph TD
-    A[Training Queries] --> B[Candidate Retrieval (Dense Retriever)]
+    A[Training Queries] --> B[Candidate Retrieval via Dense Retriever]
     B --> C[Pairwise LLM Judgments]
     C --> D[Sparse Comparison Graph]
     D --> E[ELO Score Computation]
@@ -1052,8 +1060,8 @@ graph TD
 ```mermaid
 graph TD
     A[User Query] --> B[ANMI Embedding Model]
-    B --> C[ANN Search (ELO-Calibrated Space)]
-    C --> D[(Optional) ANMI Reranker]
+    B --> C[ANN Search in ELO-Calibrated Space]
+    C --> D[Optional ANMI Reranker]
     D --> E[Final Ranked Results]
 ```
 
@@ -1118,11 +1126,18 @@ flowchart TB
 ## 16.1 Expected Improvements
 
 ```mermaid
-xychart-beta
-    title "Expected Quality Improvements (% NDCG Gain)"
-    x-axis ["Hard Neg Mining", "Knowledge Distill", "Domain Fine-tune", "Full ANMI 2.0"]
-    y-axis "NDCG Improvement %" 0 --> 50
-    bar [8, 12, 18, 42]
+flowchart LR
+    subgraph "NDCG Improvement Comparison"
+        direction TB
+        A[Hard Neg Mining<br/>~8% gain] --> B[Knowledge Distill<br/>~12% gain]
+        B --> C[Domain Fine-tune<br/>~18% gain]
+        C --> D[Full ANMI 2.0<br/>~42% gain]
+    end
+    
+    style A fill:#ffcdd2
+    style B fill:#fff9c4
+    style C fill:#c8e6c9
+    style D fill:#a5d6a7
 ```
 
 ## 16.2 Component Contribution Analysis
