@@ -20,7 +20,7 @@ candidate documents from large corpora.
 Introduction: From Lexical to Semantic Matching
 -----------------------------------------------
 
-Text retrieval aims to find relevant information resources (e.g., documents or passages) in response to a user's natural language query. As a fundamental technique for overcoming information overload, its methodology has evolved through several distinct paradigms, as outlined in foundational surveys of the field.
+Text retrieval aims to find relevant information resources (e.g., documents or passages) in response to a user's natural language query. As a fundamental technique for overcoming information overload, its methodology has evolved through several distinct paradigms, as detailed in the comprehensive survey **"Dense Text Retrieval based on Pretrained Language Models: A Survey"** by `Zhao et al. (2022) <https://arxiv.org/abs/2211.14876>`_.
 
 .. image:: evolution_of_retrieval_methods.png
    :align: center
