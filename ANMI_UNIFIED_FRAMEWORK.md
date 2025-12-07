@@ -31,9 +31,10 @@ approaches. Rather than treating ELO-based methods and contrastive
 learning as alternatives, we demonstrate how ELO scores can be used to
 calibrate negative sampling, weight training examples, and regularize
 the contrastive objective. We prove convergence guarantees for our
-sparse ELO estimation procedure, derive the optimal mixing coefficient
-for our hybrid loss function, and establish theoretical bounds on false
-negative damage under various training regimes.
+sparse ELO estimation procedure, analyze the hybrid loss mixing coefficient
+and present principled weighting schemes (uncertainty weighting, learnable
+parameters), and establish theoretical bounds on false negative damage
+under various training regimes.
 
 We further extend ANMI 2.0  incorporating seven principled,
 research-validated methods that eliminate arbitrary threshold selection:
@@ -129,9 +130,12 @@ This paper makes the following contributions:
     estimation from O(n) pairwise comparisons, establishing the
     theoretical foundation for efficient calibration.
 
-7.  Hybrid Loss Analysis: We derive the optimal mixing coefficient for
-    combining contrastive and regression objectives, with explicit
-    dependence on false negative rates.
+7.  Hybrid Loss Analysis: We analyze the mixing coefficient for
+    combining contrastive and regression objectives, establishing that
+    the value comes from multi-objective learning (ranking + calibration)
+    rather than gradient cancellation. We present principled alternatives
+    including uncertainty weighting (Kendall et al., 2018) that eliminate
+    manual tuning.
 
 8.  Principled Threshold Methods: We extend ANMI 2.0 with seven
     research-validated methods that eliminate arbitrary thresholds through
@@ -141,18 +145,38 @@ This paper makes the following contributions:
     improvement over fixed thresholds with theoretical guarantees and
     automatic adaptation to data characteristics.
 
-**1.4 ANMI 2.0 Extension**
+**1.4 ANMI 2.0 vs. ANMI 2.0 Extended**
 
-The baseline ANMI 2.0 framework (Sections 2-9) establishes the theoretical foundation with empirically-determined thresholds (Table 2). Extended ANMI 2.0 extends this with principled, adaptive methods that:
+The baseline ANMI 2.0 framework (Sections 2-9) establishes the theoretical foundation with empirically-determined thresholds (Table 2). **ANMI 2.0 Extended** enhances this with seven principled, threshold-free methods while **PRESERVING the entire ELO-based architecture**:
 
-- Replace fixed ELO gaps with **positive-relative thresholds** (NV-Retriever, 2024)
-- Add **cross-encoder denoising** to reduce false negative rate from ~70% to ~15%
-- Implement **debiased contrastive loss** (Robinson et al., ICLR 2021) with provable FN correction
-- Use **probabilistic GMM weighting** (ProGCL, ICML 2022) instead of hard cutoffs
-- Employ **learning progress signals** (Graves et al., ICML 2017) for automatic curriculum
-- Make **temperature learnable** (CLIP, 2021) rather than fixed
+**What's PRESERVED (Core ANMI 2.0):**
+- ✅ Sparse ELO estimation via k-regular graphs (O(n) complexity)
+- ✅ Pairwise comparison model (Thurstone MLE)
+- ✅ Hybrid loss structure: α·InfoNCE + (1-α)·MSE_on_ELO
+- ✅ Four-stage pipeline: BM25 → ELO → Selection → Training
 
-See **ANMI_PRINCIPLED_THRESHOLDS.md** for complete details. The remainder of this document presents the foundational ANMI 2.0 framework.
+**What's EXTENDED (Threshold-Free Methods):**
+- 🔄 Fixed gaps [200, 400] → **Percentile-based [10th, 25th, 75th]** or **GMM-discovered**
+- 🔄 Separate cross-encoder → **Reuses pairwise model for denoising**
+- 🔄 Standard InfoNCE → **Debiased InfoNCE** (Robinson et al., ICLR 2021)
+- 🔄 Fixed temperature → **Learnable temperature** (CLIP, 2021)
+- 🔄 Static curriculum → **Adaptive curriculum** (Graves et al., ICML 2017)
+
+**Seven Principled Methods (All Operate on ELO Scores):**
+
+1. **Pairwise Denoising**: Reuses ANMI's pairwise model to filter ~70% false negatives (RocketQA)
+2. **Positive-Relative Thresholds**: `gap > 0.05 × positive_elo` adapts to query difficulty (NV-Retriever)
+3. **Debiased Hybrid Loss**: α·DebiasedInfoNCE + (1-α)·MSE_on_ELO with provable FN correction
+4. **GMM on ELO Gaps**: Discovers thresholds like [185, 425] from data (ProGCL, ICML 2022)
+5. **SimANS on ELO Rankings**: Rank-based sampling within ELO constraints (EMNLP 2022)
+6. **Curriculum on ELO Gaps**: Adapts [250→150, 500→350] based on training progress (Graves et al.)
+7. **Learnable Temperature**: Optimizes InfoNCE component (MSE component unchanged) (CLIP)
+
+**Critical Design Principle:** All methods operate **WITH** the ELO infrastructure, not as replacements. The sparse ELO estimation (ANMI 2.0's core contribution) remains the foundation, while these methods eliminate hardcoded thresholds.
+
+**Expected Impact:** +10-18% over fixed thresholds, with automatic adaptation to corpus characteristics.
+
+See **ANMI_PRINCIPLED_THRESHOLDS.md** for complete mathematical derivations, implementation details, and integration patterns. The remainder of this document presents the foundational ANMI 2.0 framework.
 
 **2. Mathematical Preliminaries**
 
@@ -941,18 +965,51 @@ angle between the gradients. □
 The mixing coefficient α controls the balance between contrastive and
 regression objectives.
 
-**Theorem 8** *(Optimal Alpha Derivation)*
+**Theorem 8** *(Hybrid Loss Justification)*
 
-> Given false negative rate ρ, the optimal mixing coefficient is: α\* =
-> (c_3 - c_1) / (c_2 · ρ + c_3 - c_1), where c_1 is the benefit from
-> valid negatives in InfoNCE, c_2 is the damage from false negatives,
-> and c_3 is the MSE baseline loss.
+The hybrid loss L = α·L_InfoNCE + (1-α)·L_MSE serves **multi-objective learning**, not gradient cancellation:
 
-Practical approximation:
+1. **InfoNCE Component**: Learns RANKING through contrastive geometric structure
+2. **MSE on ELO Component**: Learns CALIBRATION (absolute score meaning) + provides regularization
 
-*α\* ≈ 0.8 - 2ρ for ρ ∈ \[0, 0.2\]* (42)
+**Critical Observation**: The gradient directions are unrelated:
+- ∇L_InfoNCE ∝ f_θ(query) (query embedding direction)
+- ∇L_MSE ∝ ∇f_θ g_ψ (ELO head direction)
 
-With estimated false negative rate 10%, this gives α\* ≈ 0.6.
+These operate in different subspaces of R^d, providing complementary learning signals rather than targeted cancellation.
+
+**Practical Guidelines (Heuristic, Not Proven Optimal):**
+
+For fixed α (baseline approach):
+
+*α ≈ 0.5 - 0.7* (empirically effective range)
+
+Adjustments based on false negative rate ρ:
+- High FN rate (ρ > 0.3): Use lower α (≈ 0.3-0.5) to reduce InfoNCE influence
+- Low FN rate (ρ < 0.1): Use higher α (≈ 0.7-0.8) to emphasize contrastive learning
+
+**Principled Alternatives (Recommended for Production):**
+
+Instead of manual α selection, use learned weights:
+
+1. **Uncertainty Weighting** (Kendall et al., CVPR 2018):
+   ```
+   L = (1/2σ_nce²)·L_InfoNCE + (1/2σ_mse²)·L_MSE + log(σ_nce·σ_mse)
+
+   where σ_nce, σ_mse are learnable task uncertainties
+   Weights emerge from data automatically
+   ```
+
+2. **Learnable α**: Make α an optimizable parameter
+   ```
+   α = nn.Parameter(torch.tensor(0.5))
+   ```
+
+3. **GradNorm** (Chen et al., NeurIPS 2018): Balance gradient magnitudes
+
+The uncertainty weighting approach is most principled as it has Bayesian theoretical foundation and requires no manual tuning.
+
+See **ANMI_PRINCIPLED_THRESHOLDS.md** Method 3 for complete implementation details and comparison of weighting schemes.
 
 **7.5 Curriculum Learning Schedule**
 
@@ -1295,9 +1352,11 @@ Our key contributions include:
     ELO estimation from O(n) pairwise comparisons, enabling efficient
     calibration.
 
-36. Hybrid loss analysis: We derived the optimal mixing coefficient and
-    characterized the regularization effect of the MSE component against
-    false negative damage.
+36. Hybrid loss analysis: We clarified that the hybrid loss serves
+    multi-objective learning (ranking + calibration) rather than gradient
+    cancellation, and presented principled weighting schemes including
+    uncertainty weighting and learnable parameters that eliminate manual
+    tuning.
 
 The framework unifies ten foundational principles---contrastive learning
 theory, Bradley-Terry models, Thurstone\'s law, information theory,
