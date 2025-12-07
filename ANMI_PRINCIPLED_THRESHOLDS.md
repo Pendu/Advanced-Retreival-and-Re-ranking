@@ -1947,7 +1947,7 @@ These 7 methods transform ANMI from a system with **fixed magic numbers** to a *
 3. **Have theoretical guarantees** (debiased loss)
 4. **Are empirically validated** (each method from peer-reviewed papers)
 
-**Total Expected Impact:** +10-18% over ANMI 2.0 with fixed thresholds
+**Total Expected Impact need to be verified:** +10-18% over ANMI 2.0 with fixed thresholds
 
 **One Remaining Constant:** positive_margin = 0.95 (empirically validated, has clear interpretation)
 
